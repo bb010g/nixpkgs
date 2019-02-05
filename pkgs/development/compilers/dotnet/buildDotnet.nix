@@ -11,7 +11,7 @@ assert builtins.elem type [ "aspnetcore" "netcore" "sdk"];
 , libuuid
 , zlib
 , curl
-}: 
+}:
 let pname = if type == "aspnetcore" then "aspnetcore-runtime" else if type == "netcore" then "dotnet-runtime" else "dotnet-sdk";
     urls = {
         aspnetcore = "https://dotnetcli.azureedge.net/dotnet/aspnetcore/Runtime/${version}/${pname}-${version}-linux-x64.tar.gz";

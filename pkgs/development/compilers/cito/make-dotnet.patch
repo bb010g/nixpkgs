@@ -1,0 +1,81 @@
+--- a/Makefile
++++ b/Makefile
+@@ -3,16 +3,27 @@
+ ifdef COMSPEC
+ CSC = "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/Roslyn/csc.exe" -nologo
+ DO_BUILD = $(CSC) -out:$@ $^
+-CITO = ./cito.exe
++CITO_BINDIR := .
++CITO_BIN := cito.exe
++CITO_RUN = $(CITO)
+ MONO :=
+ JAVACPSEP = ;
+ else
++BINDIR = $(DESTDIR)$(prefix)/bin
++LIBDIR = $(DESTDIR)$(prefix)/lib
+ CSC := mcs
+-DO_BUILD = dotnet build
+-CITO = dotnet run --
++DOTNET_SDK := dotnet
++DOTNET = $(DOTNET_SDK)
++BUILD_CONFIGURATION := Release
++DOTNET_BUILD = $(DOTNET_SDK) build -c $(BUILD_CONFIGURATION) $(DOTNETFLAGS)
++DO_BUILD = $(DOTNET_BUILD)
++CITO_BINDIR := ./bin/$(BUILD_CONFIGURATION)/netcoreapp3.0
++CITO_BIN := cito.dll
++CITO_RUN = $(DOTNET) $(CITO)
+ MONO := mono
+ JAVACPSEP = :
+ endif
++CITO := $(CITO_BINDIR)/$(CITO_BIN)
+ CC = clang -Wall -Wno-tautological-compare -Wno-unused-function -Werror
+ CXX = clang++ -Wall -Wno-tautological-compare -Werror -std=c++2a
+ PYTHON = python3
+@@ -25,11 +36,11 @@
+ DO = @echo $@ && 
+ endif
+ DO_SUMMARY = $(DO)perl test/summary.pl $^
+-DO_CITO = $(DO)mkdir -p $(@D) && ($(CITO) -o $@ $< || grep '//FAIL:.*\<$(subst .,,$(suffix $@))\>' $<)
++DO_CITO = $(DO)mkdir -p $(@D) && ($(CITO_RUN) -o $@ $< || grep '//FAIL:.*\<$(subst .,,$(suffix $@))\>' $<)
+ 
+-all: cito.exe
++all: $(CITO)
+ 
+-cito.exe: $(addprefix $(srcdir),AssemblyInfo.cs CiException.cs CiTree.cs CiLexer.cs CiDocLexer.cs CiDocParser.cs CiParser.cs CiResolver.cs GenBase.cs GenTyped.cs GenCCpp.cs GenC.cs GenCpp.cs GenCs.cs GenJava.cs GenJs.cs GenPy.cs CiTo.cs)
++$(CITO): $(addprefix $(srcdir),AssemblyInfo.cs CiException.cs CiTree.cs CiLexer.cs CiDocLexer.cs CiDocParser.cs CiParser.cs CiResolver.cs GenBase.cs GenTyped.cs GenCCpp.cs GenC.cs GenCpp.cs GenCs.cs GenJava.cs GenJs.cs GenPy.cs CiTo.cs)
+ 	$(DO_BUILD)
+ 
+ test: test-c test-cpp test-cs test-java test-js test-py test-error
+@@ -113,23 +124,23 @@
+ 	$(DO)javac -d $(@D) -cp test/bin/Basic $<
+ 
+ test/bin/%/error.txt: test/error/%.ci cito.exe
+-	mkdir -p $(@D) && ! $(CITO) -o $(@:%.txt=%.cs) $< 2>$@
++	mkdir -p $(@D) && ! $(CITO_RUN) -o $(@:%.txt=%.cs) $< 2>$@
+ 	-perl -ne 'print "$$ARGV($$.): $$1" if m!//(ERROR: .+)!s' $< | diff -uZ - $@ && echo PASSED >$@
+ 
+ install: install-cito
+ 
+-install-cito: cito.exe
+-	mkdir -p $(DESTDIR)$(prefix)/lib/cito $(DESTDIR)$(prefix)/bin
+-	cp $< $(DESTDIR)$(prefix)/lib/cito/cito.exe
+-	(echo '#!/bin/sh' && echo 'exec /usr/bin/mono $(DESTDIR)$(prefix)/lib/cito/cito.exe "$$@"') >$(DESTDIR)$(prefix)/bin/cito
+-	chmod 755 $(DESTDIR)$(prefix)/bin/cito
++install-cito: $(CITO)
++	install -Dm755 -t $(LIBDIR)/cito $(CITO_BINDIR)/{$(CITO_BIN),cito.runtimeconfig.json}
++	mkdir -p $(BINDIR)
++	(printf '#!/bin/sh\nexec $(DOTNET) $(LIBDIR)/cito/$(CITO_BIN) "$$@"') >$(BINDIR)/cito
++	chmod 755 $(BINDIR)/cito
+ 
+ uninstall:
+-	$(RM) $(DESTDIR)$(prefix)/bin/cito $(DESTDIR)$(prefix)/lib/cito/cito.exe
+-	rmdir $(DESTDIR)$(prefix)/lib/cito
++	$(RM) $(BINDIR)/cito
++	$(RM) -r $(LIBDIR)/cito
+ 
+ clean:
+-	$(RM) cito.exe
++	$(RM) $(CITO)
+ 	$(RM) -r test/bin
+ 
+ .PHONY: all test test-c test-cpp test-cs test-java test-js test-py test-error install install-cito uninstall clean

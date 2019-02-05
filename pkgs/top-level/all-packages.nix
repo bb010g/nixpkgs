@@ -221,15 +221,17 @@ in
 
   dotnetCorePackages = recurseIntoAttrs (callPackage ../development/compilers/dotnet {});
 
-  dotnet-sdk = dotnetCorePackages.sdk_2_1;
-
+  dotnet-sdk = dotnet-sdk_2;
   dotnet-sdk_2 = dotnetCorePackages.sdk_2_1;
-
   dotnet-sdk_3 = dotnetCorePackages.sdk_3_1;
 
-  dotnet-netcore = dotnetCorePackages.netcore_2_1;
+  dotnet-netcore = dotnet-netcore_2;
+  dotnet-netcore_2 = dotnetCorePackages.netcore_2_1;
+  dotnet-netcore_3 = dotnetCorePackages.netcore_3_1;
 
-  dotnet-aspnetcore = dotnetCorePackages.aspnetcore_2_1;
+  dotnet-aspnetcore = dotnet-aspnetcore_2;
+  dotnet-aspnetcore_2 = dotnetCorePackages.aspnetcore_2_1;
+  dotnet-aspnetcore_3 = dotnetCorePackages.aspnetcore_3_1;
 
   dumb-init = callPackage ../applications/virtualization/dumb-init {};
 
@@ -7847,6 +7849,13 @@ in
   binaryen = callPackage ../development/compilers/binaryen { };
 
   bluespec = callPackage ../development/compilers/bluespec { };
+
+  cito = callPackage ../development/compilers/cito { };
+  cito-unstable = callPackage ../development/compilers/cito/unstable.nix {
+    inherit (dotnetPackages) Nuget;
+    dotnet-sdk = dotnetCorePackages.sdk_3_0;
+    dotnet-netcore = dotnetCorePackages.netcore_3_0;
+  };
 
   colm = callPackage ../development/compilers/colm { };
 
