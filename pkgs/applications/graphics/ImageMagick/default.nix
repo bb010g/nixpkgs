@@ -1,15 +1,20 @@
-{ lib, stdenv, fetchFromGitHub, fetchpatch, pkgconfig, libtool
-, bzip2, zlib, libX11, libXext, libXt, fontconfig, freetype, ghostscript, libjpeg, djvulibre
-, lcms2, openexr, libpng, librsvg, libtiff, libxml2, openjpeg, libwebp, fftw, libheif, libde265
+{ stdenv, buildPackages, fetchFromGitHub, fetchpatch
+, djvulibre, fontconfig, ghostscript, libde265, libheif, libpng, libtiff
+, libxml2, zlib
+, librsvg, openexr, openjpeg
+, bzip2, fftw, freetype, lcms2, libjpeg
+, libX11, libXext, libXt, libwebp
 , ApplicationServices
 }:
 
 let
-  arch =
-    if stdenv.hostPlatform.system == "i686-linux" then "i686"
-    else if stdenv.hostPlatform.system == "x86_64-linux" || stdenv.hostPlatform.system == "x86_64-darwin" then "x86-64"
-    else if stdenv.hostPlatform.system == "armv7l-linux" then "armv7l"
-    else if stdenv.hostPlatform.system == "aarch64-linux" then "aarch64"
+  inherit (stdenv.lib) optional optionalAttrs optionalString optionals;
+
+  arch = let inherit (stdenv.hostPlatform) system; in
+    if system == "i686-linux" then "i686"
+    else if system == "x86_64-linux" || system == "x86_64-darwin" then "x86-64"
+    else if system == "armv7l-linux" then "armv7l"
+    else if system == "aarch64-linux" then "aarch64"
     else throw "ImageMagick is not supported on this platform.";
 
   cfg = {
@@ -19,7 +24,7 @@ let
   }
     # Freeze version on mingw so we don't need to port the patch too often.
     # FIXME: This version has multiple security vulnerabilities
-    // lib.optionalAttrs (stdenv.hostPlatform.isMinGW) {
+    // optionalAttrs (stdenv.hostPlatform.isMinGW) {
         version = "6.9.2-0";
         sha256 = "17ir8bw1j7g7srqmsz3rx780sgnc21zfn0kwyj78iazrywldx8h7";
         patches = [(fetchpatch {
@@ -32,7 +37,7 @@ let
 in
 
 stdenv.mkDerivation rec {
-  name = "imagemagick-${version}";
+  pname = "imagemagick";
   inherit (cfg) version;
 
   src = fetchFromGitHub {
@@ -49,57 +54,82 @@ stdenv.mkDerivation rec {
 
   enableParallelBuilding = true;
 
-  configureFlags =
-    [ "--with-frozenpaths" ]
-    ++ [ "--with-gcc-arch=${arch}" ]
-    ++ lib.optional (librsvg != null) "--with-rsvg"
-    ++ lib.optionals (ghostscript != null)
-      [ "--with-gs-font-dir=${ghostscript}/share/ghostscript/fonts"
-        "--with-gslib"
-      ]
-    ++ lib.optionals (stdenv.hostPlatform.isMinGW)
-      [ "--enable-static" "--disable-shared" ] # due to libxml2 being without DLLs ATM
-    ;
+  configureFlags = [
+    "--with-frozenpaths"
+    "--with-gcc-arch=${arch}"
+  ] ++ optional (librsvg != null) (
+    "--with-rsvg"
+  ) ++ optionals (ghostscript != null) [
+    "--with-gs-font-dir=${ghostscript}/share/ghostscript/fonts"
+    "--with-gslib"
+  ] ++ optionals (stdenv.hostPlatform.isMinGW) [
+    # due to libxml2 being without DLLs ATM
+    "--enable-static"
+    "--disable-shared"
+  ];
 
-  nativeBuildInputs = [ pkgconfig libtool ];
+  nativeBuildInputs = [
+    buildPackages.libtool
+    buildPackages.pkgconfig
+  ];
 
-  buildInputs =
-    [ zlib fontconfig freetype ghostscript
-      libpng libtiff libxml2 libheif libde265 djvulibre
-    ]
-    ++ lib.optionals (!stdenv.hostPlatform.isMinGW)
-      [ openexr librsvg openjpeg ]
-    ++ lib.optional stdenv.isDarwin ApplicationServices;
+  buildInputs = [
+    djvulibre
+    fontconfig
+    ghostscript
+    libde265
+    libheif
+    libpng
+    libtiff
+    libxml2
+    zlib
+  ] ++ optionals (!stdenv.hostPlatform.isMinGW) [
+    librsvg
+    openexr
+    openjpeg
+  ] ++ optional stdenv.isDarwin
+    ApplicationServices;
 
-  propagatedBuildInputs =
-    [ bzip2 freetype libjpeg lcms2 fftw ]
-    ++ lib.optionals (!stdenv.hostPlatform.isMinGW)
-      [ libX11 libXext libXt libwebp ]
-    ;
+  propagatedBuildInputs = [
+    bzip2
+    fftw
+    freetype
+    lcms2
+    libjpeg
+  ] ++ optionals (!stdenv.hostPlatform.isMinGW) [
+    libX11
+    libXext
+    libXt
+    libwebp
+  ];
 
   doCheck = false; # fails 6 out of 76 tests
 
-  postInstall = ''
+  postInstall = let inherit (buildPackages) pkgconfig; in ''
     (cd "$dev/include" && ln -s ImageMagick* ImageMagick)
     moveToOutput "bin/*-config" "$dev"
-    moveToOutput "lib/ImageMagick-*/config-Q16" "$dev" # includes configure params
+    # includes configure params
+    moveToOutput "lib/ImageMagick-*/config-Q16" "$dev"
     for file in "$dev"/bin/*-config; do
-      substituteInPlace "$file" --replace "${pkgconfig}/bin/pkg-config -config" \
-        ${pkgconfig}/bin/pkg-config
-      substituteInPlace "$file" --replace ${pkgconfig}/bin/pkg-config \
-        "PKG_CONFIG_PATH='$dev/lib/pkgconfig' '${pkgconfig}/bin/pkg-config'"
+      substituteInPlace "$file" \
+        --replace "${pkgconfig}/bin/pkg-config -config" \
+          ${pkgconfig}/bin/pkg-config
+      substituteInPlace "$file" \
+        --replace ${pkgconfig}/bin/pkg-config \
+          "PKG_CONFIG_PATH='$dev/lib/pkgconfig' '${pkgconfig}/bin/pkg-config'"
     done
-  '' + lib.optionalString (ghostscript != null) ''
-    for la in $out/lib/*.la; do
-      sed 's|-lgs|-L${lib.getLib ghostscript}/lib -lgs|' -i $la
+  '' + optionalString (ghostscript != null) ''
+    for la in "$out"/lib/*.la; do
+      sed 's|-lgs|-L${stdenv.lib.getLib ghostscript}/lib -lgs|' -i "$la"
     done
   '';
 
   meta = with stdenv.lib; {
     homepage = http://www.imagemagick.org/;
-    description = "A software suite to create, edit, compose, or convert bitmap images";
-    platforms = platforms.linux ++ platforms.darwin;
+    description =
+      "A software suite to create, edit, compose, or convert bitmap images";
+    platforms = with platforms; linux ++ darwin;
     maintainers = with maintainers; [ the-kenny ];
-    license = licenses.asl20;
+    license = with licenses; asl20;
   };
 }
