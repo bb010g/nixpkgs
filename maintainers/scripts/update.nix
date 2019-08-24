@@ -1,9 +1,10 @@
 { package ? null
 , maintainer ? null
 , path ? null
+, targetPkgs ? null
 , max-workers ? null
 , keep-going ? null
-}:
+} @ args:
 
 # TODO: add assert statements
 
@@ -31,8 +32,9 @@ let
 
   pkgs = import ./../../default.nix { overlays = [ ]; };
 
-  targetPkgs = pkgs;
-  targetMaintainers = pkgs.lib.maintainers;
+  targetPkgs = args.targetPkgs or pkgs;
+  targetMaintainers = pkgs.lib.maintainers //
+    attrByPath [ "targetPkgs" "lib" "maintainers" ] { } args;
 
   packagesWith = cond: return: set: let
       nestedPackages = lib.mapAttrsToList
