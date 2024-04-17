@@ -874,7 +874,9 @@ let
      recursion.
   */
   pushDownProperties = cfg:
-    if cfg._type or "" == "merge" then
+    if cfg._type or "" == "raw" then
+      [ cfg ]
+    else if cfg._type or "" == "merge" then
       concatMap pushDownProperties cfg.contents
     else if cfg._type or "" == "if" then
       map (mapAttrs (n: v: mkIf cfg.condition v)) (pushDownProperties cfg.content)
@@ -884,17 +886,19 @@ let
       [ cfg ];
 
   /* Given a config value, expand mkMerge properties, and discharge
-     any mkIf conditions.  That is, this is the place where mkIf
-     conditions are actually evaluated.  The result is a list of
-     config values.  For example, ‘mkIf false x’ yields ‘[]’,
-     ‘mkIf true x’ yields ‘[x]’, and
+     any mkIf and mkRaw conditions.  That is, this is the place
+     where mkIf conditions are actually evaluated.  The result is a
+     list of config values.  For example, ‘mkIf false x’ yields
+     ‘[]’, ‘mkIf true x’ yields ‘[x]’, and
 
        mkMerge [ 1 (mkIf true 2) (mkIf true (mkIf false 3)) ]
 
      yields ‘[ 1 2 ]’.
   */
   dischargeProperties = def:
-    if def._type or "" == "merge" then
+    if def._type or "" == "raw" then
+      [ def.content ]
+    else if def._type or "" == "merge" then
       concatMap dischargeProperties def.contents
     else if def._type or "" == "if" then
       if isBool def.condition then
@@ -995,6 +999,11 @@ let
                 defsByAttr;
 
   /* Properties. */
+
+  mkRaw = content:
+    { _type = "raw";
+      inherit content;
+    };
 
   mkIf = condition: content:
     { _type = "if";
@@ -1429,6 +1438,7 @@ private //
     mkOptionDefault
     mkOrder
     mkOverride
+    mkRaw
     mkRemovedOptionModule
     mkRenamedOptionModule
     mkRenamedOptionModuleWith
