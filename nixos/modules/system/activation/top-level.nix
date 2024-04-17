@@ -1,8 +1,8 @@
 { config, lib, pkgs, ... }:
 
-with lib;
-
 let
+  inherit (lib) literalExpression mkOption types;
+
   systemBuilder =
     ''
       mkdir $out
@@ -31,9 +31,9 @@ let
 
       cp "$extraDependenciesPath" "$out/extra-dependencies"
 
-      ${optionalString (!config.boot.isContainer && config.boot.bootspec.enable) ''
+      ${lib.optionalString (!config.boot.isContainer && config.boot.bootspec.enable) ''
         ${config.boot.bootspec.writer}
-        ${optionalString config.boot.bootspec.enableValidation
+        ${lib.optionalString config.boot.bootspec.enableValidation
           ''${config.boot.bootspec.validator} "$out/${config.boot.bootspec.filename}"''}
       ''}
 
@@ -61,14 +61,14 @@ let
 
   # Handle assertions and warnings
 
-  failedAssertions = map (x: x.message) (filter (x: !x.assertion) config.assertions);
+  failedAssertions = map (x: x.message) (builtins.filter (x: !x.assertion) config.assertions);
 
   baseSystemAssertWarn = if failedAssertions != []
-    then throw "\nFailed assertions:\n${concatStringsSep "\n" (map (x: "- ${x}") failedAssertions)}"
-    else showWarnings config.warnings baseSystem;
+    then throw "\nFailed assertions:\n${builtins.concatStringsSep "\n" (map (x: "- ${x}") failedAssertions)}"
+    else lib.showWarnings config.warnings baseSystem;
 
   # Replace runtime dependencies
-  system = foldr ({ oldDependency, newDependency }: drv:
+  system = lib.foldr ({ oldDependency, newDependency }: drv:
       pkgs.replaceDependency { inherit oldDependency newDependency drv; }
     ) baseSystemAssertWarn config.system.replaceRuntimeDependencies;
 
@@ -84,8 +84,8 @@ in
 {
   imports = [
     ../build.nix
-    (mkRemovedOptionModule [ "nesting" "clone" ] "Use `specialisation.«name» = { inheritParentConfig = true; configuration = { ... }; }` instead.")
-    (mkRemovedOptionModule [ "nesting" "children" ] "Use `specialisation.«name».configuration = { ... }` instead.")
+    (lib.mkRemovedOptionModule [ "nesting" "clone" ] "Use `specialisation.«name» = { inheritParentConfig = true; configuration = { ... }; }` instead.")
+    (lib.mkRemovedOptionModule [ "nesting" "children" ] "Use `specialisation.«name».configuration = { ... }` instead.")
   ];
 
   options = {
@@ -139,6 +139,15 @@ in
         and links it from the resulting system
         (getting to {file}`/run/current-system/configuration.nix`).
         Note that only this single file is copied, even if it imports others.
+      '';
+    };
+
+    system.copiedSystemConfiguration = mkOption {
+      type = types.lines;
+      default = {
+      };
+      description = lib.mdDoc ''
+        This code will be added to the builder creating the system store path.
       '';
     };
 
@@ -283,12 +292,12 @@ in
     ];
 
     system.extraSystemBuilderCmds =
-      optionalString
+      lib.optionalString
         config.system.copySystemConfiguration
-        ''ln -s '${import ../../../lib/from-env.nix "NIXOS_CONFIG" <nixos-config>}' \
+        ''ln -s '${lib.maybeEnv "NIXOS_CONFIG" <nixos-config>}' \
             "$out/configuration.nix"
         '' +
-      optionalString
+      lib.optionalString
         (config.system.forbiddenDependenciesRegex != "")
         ''
           if [[ $forbiddenDependenciesRegex != "" && -n $closureInfo ]]; then
@@ -317,7 +326,7 @@ in
       # In fact, using them runs the risk of accidentally adding unneeded paths
       # to the system closure, which defeats the purpose of the `system.checks`
       # option, as opposed to `system.extraDependencies`.
-      passedChecks = concatStringsSep " " config.system.checks;
+      passedChecks = builtins.concatStringsSep " " config.system.checks;
     }
     // lib.optionalAttrs (config.system.forbiddenDependenciesRegex != "") {
       inherit (config.system) forbiddenDependenciesRegex;
