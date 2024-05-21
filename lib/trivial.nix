@@ -1,6 +1,9 @@
 { lib }:
 
 let
+  inherit (builtins)
+    mapAttrs
+    ;
   inherit (lib.trivial)
     isFunction
     isInt
@@ -1052,6 +1055,77 @@ in {
     in
     g:
     setFunctionArgs g fArgs;
+
+  /**
+    `mergeFunctionArgs f g` creates a new function `g'` with the same behavior as `g` (`g' x == g x`)
+    but its function arguments merged with `f`.
+
+
+    # Inputs
+
+    `f`
+
+    : Function to provide argument metadata
+
+    `g`
+
+    : Function to provide argument metadata and set the argument metadata to
+
+    # Type
+
+    ```
+    mergeFunctionArgs :: (a -> b) -> (a -> c) -> (a -> c)
+    ```
+
+    # Examples
+    :::{.example}
+    ## `lib.trivial.mergeFunctionArgs` usage example
+
+    ```nix
+    addab = { a, b ? 4, ... }: a + b
+    addab { a = 2; }
+    => 6
+    lib.functionArgs addab
+    => { a = false; b = true; }
+    addab1 = attrs: addab attrs + 1
+    addab1 { a = 2; }
+    => 7
+    lib.functionArgs addab1
+    => { }
+    addab1' = lib.mergeFunctionArgs addab addab1
+    addab1' { a = 2; }
+    => 7
+    lib.functionArgs addab1'
+    => { a = false; b = true; }
+    addab2 = attrs@{ b, c ? 1, ... }: addab attrs + c
+    addab2 { a = 2; b = 4; }
+    => 7
+    lib.functionArgs addab2
+    => { b = false; c = true; }
+    addab2' = lib.mergeFunctionArgs addab addab2
+    addab2' { a = 2; b = 4; }
+    => 7
+    lib.functionArgs addab2'
+    => { a = false; b = false; c = true; }
+    ```
+
+    :::
+  */
+  mergeFunctionArgs =
+    let
+      mergeFunctionArgAttrs =
+        fArgs:
+        gArgs:
+        mapAttrs
+          (argName: argHasDefault: argHasDefault && fArgs.${argName} or true)
+          (fArgs // gArgs);
+    in
+    f:
+    let
+      fArgs = functionArgs f;
+    in
+    g:
+    setFunctionArgs g (mergeFunctionArgAttrs fArgs (functionArgs g));
 
   /**
     Turns any non-callable values into constant functions.
