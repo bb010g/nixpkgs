@@ -130,8 +130,9 @@ rec {
   */
   makeOverridable = f:
     let
+      fArgs = functionArgs f;
       # Creates a functor with the same arguments as f
-      mirrorArgs = mirrorFunctionArgs f;
+      mirrorArgs = g: setFunctionArgs g fArgs;
     in
     mirrorArgs (origArgs:
     let
@@ -152,6 +153,8 @@ rec {
             extends newArgs (toFunction origArgs)
           else
             origArgs' // newArgs'));
+      # Change the result of the function call by replacing the function with g
+      overrideCall = g: makeOverridable g origArgs;
       # Change the result of the function call by applying g to it
       overrideResult = g: makeOverridable (mirrorArgs (args: g (f args))) origArgs;
     in
@@ -161,6 +164,16 @@ rec {
           overrideDerivation = fdrv: overrideResult (x: overrideDerivation x fdrv);
           ${if result ? overrideAttrs then "overrideAttrs" else null} = fdrv:
             overrideResult (x: x.overrideAttrs fdrv);
+          ${if result ? overrideAttrs then "overrideAttrsWithArgs" else null} = fdrvFn:
+            let
+              fdrvFnArgs = functionArgs fdrvFn;
+              newArgNames = filter (argName: !(fArgs ? ${argName})) (attrNames fdrvFnArgs);
+              safeF = if newArgNames == [ ] then f else args: f (removeAttrs args newArgNames);
+              mergedArgs = mapAttrs
+                (argName: argHasDefault: argHasDefault && fArgs.${argName} or true)
+                (fArgs // fdrvFnArgs);
+            in
+            overrideCall (setFunctionArgs (args: (safeF args).overrideAttrs (fdrvFn args)) mergedArgs);
         }
       else if isFunction result then
         # Transform the result into a functor while propagating its arguments
