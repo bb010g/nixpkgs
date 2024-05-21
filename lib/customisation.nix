@@ -4,8 +4,8 @@ let
   inherit (builtins)
     intersectAttrs;
   inherit (lib)
-    functionArgs isFunction mirrorFunctionArgs isAttrs setFunctionArgs
-    optionalAttrs attrNames filter elemAt concatStringsSep sortOn take length
+    functionArgs isFunction mergeFunctionArgs mirrorFunctionArgs toFunction setFunctionArgs
+    isAttrs optionalAttrs attrNames filter elemAt concatStringsSep sortOn take length
     filterAttrs optionalString flip pathIsDirectory head pipe isDerivation listToAttrs
     mapAttrs seq flatten deepSeq warnIf isInOldestRelease extends
     ;
@@ -94,7 +94,7 @@ rec {
     injects `override` attribute which can be used to override arguments of
     the function.
 
-    Please refer to  documentation on [`<pkg>.overrideDerivation`](#sec-pkg-overrideDerivation) to learn about `overrideDerivation` and caveats
+    Please refer to documentation on [`<pkg>.overrideDerivation`](#sec-pkg-overrideDerivation) to learn about `overrideDerivation` and caveats
     related to its use.
 
 
@@ -135,14 +135,23 @@ rec {
     in
     mirrorArgs (origArgs:
     let
-      result = f origArgs;
+      # Fix `origArgs`, if necessary.
+      origArgs' = if isFunction origArgs then origArgs origArgs' else origArgs;
+      result = f origArgs';
 
       # Re-call the function but with different arguments
       overrideArgs = mirrorArgs (newArgs:
         let
-          args = origArgs // if isFunction newArgs then newArgs origArgs else newArgs;
+          # Legacy convention: `overrideWith (prevArgs: { })`
+          newArgs' = if isFunction newArgs then newArgs origArgs' else newArgs;
+          # Overlay convention: `overrideWith (finalArgs: prevArgs: { })`
+          newArgsIsOverlay = isFunction newArgs';
         in
-        makeOverridable f args);
+        makeOverridable (if newArgsIsOverlay then mergeFunctionArgs newArgs f else f)
+          (if newArgsIsOverlay then
+            extends newArgs (toFunction origArgs)
+          else
+            origArgs' // newArgs'));
       # Change the result of the function call by applying g to it
       overrideResult = g: makeOverridable (mirrorArgs (args: g (f args))) origArgs;
     in
