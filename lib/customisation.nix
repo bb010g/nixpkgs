@@ -137,11 +137,12 @@ rec {
     let
       result = f origArgs;
 
-      # Changes the original arguments with (potentially a function that returns) a set of new attributes
-      overrideWith = newArgs: origArgs // (if isFunction newArgs then newArgs origArgs else newArgs);
-
       # Re-call the function but with different arguments
-      overrideArgs = mirrorArgs (newArgs: makeOverridable f (overrideWith newArgs));
+      overrideArgs = mirrorArgs (newArgs:
+        let
+          args = origArgs // if isFunction newArgs then newArgs origArgs else newArgs;
+        in
+        makeOverridable f args);
       # Change the result of the function call by applying g to it
       overrideResult = g: makeOverridable (mirrorArgs (args: g (f args))) origArgs;
     in
