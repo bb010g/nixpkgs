@@ -78,6 +78,12 @@ in
       ];
     };
 
+    finalPackage = lib.mkOption {
+      type = lib.types.package;
+      readOnly = true;
+      description = "The configured Firefox package to use.";
+    };
+
     wrapperConfig = lib.mkOption {
       type = lib.types.attrs;
       default = { };
@@ -296,53 +302,56 @@ in
           lib.mapAttrsToList (k: v: lib.optional cfg.nativeMessagingHosts.${k} (fn k v)) nmhOptions
         );
     in
-    lib.mkIf cfg.enable {
-      warnings = forEachEnabledNmh (
-        k: v:
-        "The `programs.firefox.nativeMessagingHosts.${k}` option is deprecated, "
-        + "please add `${v.package.pname}` to `programs.firefox.nativeMessagingHosts.packages` instead."
-      );
-      programs.firefox.nativeMessagingHosts.packages = forEachEnabledNmh (_: v: v.package);
+    lib.mkMerge [
+      {
+        warnings = forEachEnabledNmh (
+          k: v:
+          "The `programs.firefox.nativeMessagingHosts.${k}` option is deprecated, "
+          + "please add `${v.package.pname}` to `programs.firefox.nativeMessagingHosts.packages` instead."
+        );
+        programs.firefox.nativeMessagingHosts.packages = forEachEnabledNmh (_: v: v.package);
 
-      environment.systemPackages = [
-        (cfg.package.override (old: {
+        programs.firefox.finalPackage = cfg.package.override (old: {
           extraPrefsFiles =
             old.extraPrefsFiles or [ ]
             ++ cfg.autoConfigFiles
             ++ [ (pkgs.writeText "firefox-autoconfig.js" cfg.autoConfig) ];
           nativeMessagingHosts = old.nativeMessagingHosts or [ ] ++ cfg.nativeMessagingHosts.packages;
           cfg = (old.cfg or { }) // cfg.wrapperConfig;
-        }))
-      ];
+        });
+      }
+      (lib.mkIf cfg.enable {
+        environment.systemPackages = [ cfg.finalPackage ];
 
-      environment.etc =
-        let
-          policiesJSON = policyFormat.generate "firefox-policies.json" { inherit (cfg) policies; };
-        in
-        lib.mkIf (cfg.policies != { }) {
-          "firefox/policies/policies.json".source = "${policiesJSON}";
+        environment.etc =
+          let
+            policiesJSON = policyFormat.generate "firefox-policies.json" { inherit (cfg) policies; };
+          in
+          lib.mkIf (cfg.policies != { }) {
+            "firefox/policies/policies.json".source = "${policiesJSON}";
+          };
+
+        # Preferences are converted into a policy
+        programs.firefox.policies = {
+          DisableAppUpdate = true;
+          Preferences = (
+            builtins.mapAttrs (_: value: {
+              Value = value;
+              Status = cfg.preferencesStatus;
+            }) cfg.preferences
+          );
+          ExtensionSettings = builtins.listToAttrs (
+            builtins.map (
+              lang:
+              lib.attrsets.nameValuePair "langpack-${lang}@firefox.mozilla.org" {
+                installation_mode = "normal_installed";
+                install_url = "https://releases.mozilla.org/pub/firefox/releases/${cfg.package.version}/linux-x86_64/xpi/${lang}.xpi";
+              }
+            ) cfg.languagePacks
+          );
         };
-
-      # Preferences are converted into a policy
-      programs.firefox.policies = {
-        DisableAppUpdate = true;
-        Preferences = (
-          builtins.mapAttrs (_: value: {
-            Value = value;
-            Status = cfg.preferencesStatus;
-          }) cfg.preferences
-        );
-        ExtensionSettings = builtins.listToAttrs (
-          builtins.map (
-            lang:
-            lib.attrsets.nameValuePair "langpack-${lang}@firefox.mozilla.org" {
-              installation_mode = "normal_installed";
-              install_url = "https://releases.mozilla.org/pub/firefox/releases/${cfg.package.version}/linux-x86_64/xpi/${lang}.xpi";
-            }
-          ) cfg.languagePacks
-        );
-      };
-    };
+      })
+    ];
 
   meta.maintainers = with lib.maintainers; [
     danth
