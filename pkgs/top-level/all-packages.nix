@@ -32573,10 +32573,6 @@ with pkgs;
 
   psst = callPackage ../applications/audio/psst { };
 
-  squeezelite-pulse = squeezelite.override {
-    audioBackend = "pulse";
-  };
-
   ltunify = callPackage ../tools/misc/ltunify { };
 
   ssrc = callPackage ../applications/audio/ssrc { };
