@@ -1,7 +1,7 @@
 {
   lib,
   stdenv,
-  darwin,
+  darwin ? null,
   fetchFromGitHub,
   flac,
   libgpiod,
@@ -34,7 +34,10 @@ let
   pulseSupport = audioBackend == "pulse";
 
   binName = "squeezelite${optionalString pulseSupport "-pulse"}";
+
+  appleSdkPackages = darwin.apple_sdk_11_0.frameworks;
 in
+assert stdenv.hostPlatform.isDarwin -> darwin != null;
 stdenv.mkDerivation {
   # the nixos module uses the pname as the binary name
   pname = binName;
@@ -59,17 +62,14 @@ stdenv.mkDerivation {
     ++ optional pulseSupport libpulseaudio
     ++ optional alsaSupport alsa-lib
     ++ optional portaudioSupport portaudio
-    ++ optionals stdenv.hostPlatform.isDarwin (
-      with darwin.apple_sdk_11_0.frameworks;
-      [
-        CoreVideo
-        VideoDecodeAcceleration
-        CoreAudio
-        AudioToolbox
-        AudioUnit
-        Carbon
-      ]
-    )
+    ++ optionals stdenv.hostPlatform.isDarwin [
+      appleSdkPackages.CoreVideo
+      appleSdkPackages.VideoDecodeAcceleration
+      appleSdkPackages.CoreAudio
+      appleSdkPackages.AudioToolbox
+      appleSdkPackages.AudioUnit
+      appleSdkPackages.Carbon
+    ]
     ++ optional faad2Support faad2
     ++ optional ffmpegSupport ffmpeg
     ++ optional opusSupport opusfile
