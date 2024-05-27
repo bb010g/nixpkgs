@@ -15426,10 +15426,6 @@ with pkgs;
     autoreconfHook = buildPackages.autoreconfHook269;
   };
 
-  squeezelite-pulse = squeezelite.override {
-    audioBackend = "pulse";
-  };
-
   inherit (ocaml-ng.ocamlPackages) stog;
 
   stumpwm = sbclPackages.stumpwm;
