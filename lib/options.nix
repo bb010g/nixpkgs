@@ -137,7 +137,7 @@ rec {
      If you want users to be able to set no package, pass `nullable = true`.
      In this mode a `default = null` will not be interpreted as no default and is interpreted literally.
 
-     Type: mkPackageOption :: pkgs -> (string|[string]) -> { nullable? :: bool, default? :: string|[string], example? :: null|string|[string], extraDescription? :: string, pkgsText? :: string } -> option
+     Type: mkPackageOption :: pkgs -> (string|[string]) -> { nullable? :: bool, default? :: string|[string], example? :: null|string|[string], extraDescription? :: string, pkgsText? :: string, relatedPackages? :: [string|[string]|{ name? :: string, path? :: [string], title? :: string, comment? :: string }] } -> option
 
      Example:
        mkPackageOption pkgs "hello" { }
@@ -197,7 +197,9 @@ rec {
         # Additional text to include in the option description (may be omitted)
         extraDescription ? "",
         # Representation of the package set passed as pkgs (defaults to `"pkgs"`)
-        pkgsText ? "pkgs"
+        pkgsText ? "pkgs",
+        # Related packages used in the manual (may be omitted) (see `relatedPackages` in `lib.mkOption`)
+        relatedPackages ? null,
       }:
       let
         name' = if isList name then last name else name;
@@ -212,9 +214,10 @@ rec {
           default = null;
         };
       in mkOption (defaults // {
+        inherit relatedPackages;
         description = "The ${name'} package to use."
           + (if extraDescription == "" then "" else " ") + extraDescription;
-        type = with lib.types; (if nullable then nullOr else lib.id) package;
+        type = (if nullable then lib.types.nullOr else lib.id) lib.types.package;
       } // optionalAttrs (example != null) {
         example = literalExpression
           (if isList example then "${pkgsText}." + concatStringsSep "." example else example);
