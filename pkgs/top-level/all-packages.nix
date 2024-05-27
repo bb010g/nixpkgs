@@ -15426,7 +15426,7 @@ with pkgs;
     autoreconfHook = buildPackages.autoreconfHook269;
   };
 
-  squeezelite-pulse = callPackage ../by-name/sq/squeezelite/package.nix {
+  squeezelite-pulse = squeezelite.override {
     audioBackend = "pulse";
   };
 
