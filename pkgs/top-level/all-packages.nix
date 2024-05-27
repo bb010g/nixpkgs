@@ -32573,7 +32573,7 @@ with pkgs;
 
   psst = callPackage ../applications/audio/psst { };
 
-  squeezelite-pulse = callPackage ../by-name/sq/squeezelite/package.nix {
+  squeezelite-pulse = squeezelite.override {
     audioBackend = "pulse";
   };
 
