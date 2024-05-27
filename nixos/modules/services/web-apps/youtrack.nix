@@ -51,13 +51,8 @@ in
       type = lib.types.str;
     };
 
-    package = lib.mkOption {
-      description = ''
-        Package to use.
-      '';
-      type = lib.types.package;
-      default = pkgs.youtrack;
-      defaultText = lib.literalExpression "pkgs.youtrack";
+    package = lib.mkPackageOption pkgs "YouTrack" {
+      default = [ "youtrack" ];
     };
 
     statePath = lib.mkOption {

@@ -67,11 +67,8 @@ in
   options.programs.firefox = {
     enable = lib.mkEnableOption "the Firefox web browser";
 
-    package = lib.mkOption {
-      type = lib.types.package;
-      default = pkgs.firefox;
-      description = "Firefox package to use.";
-      defaultText = lib.literalExpression "pkgs.firefox";
+    package = lib.mkPackageOption pkgs "Firefox" {
+      default = "firefox";
       relatedPackages = [
         "firefox"
         "firefox-beta-bin"
