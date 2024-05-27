@@ -297,9 +297,8 @@ in {
       default = false;
       description = "Use HTTPS for generated links.";
     };
-    package = mkOption {
-      type = types.package;
-      description = "Which package to use for the Nextcloud instance.";
+    package = mkPackageOption pkgs "Nextcloud" {
+      default = null;
       relatedPackages = [ [ "nextcloud28" ] [ "nextcloud29" ] [ "nextcloud30" ] ];
     };
     phpPackage = mkPackageOption pkgs "php" {

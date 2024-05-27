@@ -38,11 +38,8 @@ in
       '';
     };
 
-    package = lib.mkOption {
-      type = lib.types.package;
-      default = pkgs.usbmuxd;
-      defaultText = lib.literalExpression "pkgs.usbmuxd";
-      description = "Which package to use for the usbmuxd daemon.";
+    package = lib.mkPackageOption pkgs "usbmuxd daemon" {
+      default = "usbmuxd";
       relatedPackages = [ "usbmuxd" "usbmuxd2" ];
     };
 

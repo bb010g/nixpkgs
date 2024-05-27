@@ -39,11 +39,7 @@ in
       visible = false;
     };
 
-    package = lib.mkOption {
-      description = ''
-        Package to use.
-      '';
-      type = lib.types.package;
+    package = lib.mkPackageOption pkgs "YouTrack" {
       default = null;
       relatedPackages = [ "youtrack_2022_3" "youtrack" ];
     };
