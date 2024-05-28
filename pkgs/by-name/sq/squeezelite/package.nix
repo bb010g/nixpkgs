@@ -1,4 +1,4 @@
-{
+packageArgs@{
   lib,
   stdenv,
   darwin ? null,
@@ -9,21 +9,22 @@
   libpulseaudio,
   libvorbis,
   mpg123,
-  audioBackend ? if stdenv.hostPlatform.isLinux then "alsa" else "portaudio",
-  alsaSupport ? stdenv.hostPlatform.isLinux,
+  audioBackend ? null,
+  alsaSupport ? null,
   alsa-lib,
-  dsdSupport ? true,
-  faad2Support ? true,
+  dsdSupport ? null,
+  faad2Support ? null,
   faad2,
-  ffmpegSupport ? true,
+  ffmpegSupport ? null,
   ffmpeg,
-  opusSupport ? true,
+  opusSupport ? null,
   opusfile,
-  resampleSupport ? true,
+  pulseSupport ? null,
+  resampleSupport ? null,
   soxr,
-  sslSupport ? true,
+  sslSupport ? null,
   openssl,
-  portaudioSupport ? stdenv.hostPlatform.isDarwin,
+  portaudioSupport ? null,
   portaudio,
   slimserver,
 }:
@@ -31,12 +32,33 @@
 let
   inherit (lib) optional optionals optionalString;
 
-  pulseSupport = audioBackend == "pulse";
+  nonNullOr = default: e: if e == null then default else e;
 
-  binName = "squeezelite${optionalString pulseSupport "-pulse"}";
+  audioBackend =
+    nonNullOr (if stdenv.hostPlatform.isLinux then "alsa" else "portaudio")
+      packageArgs.audioBackend or null;
+
+  alsaBackend = audioBackend == "alsa";
+  alsaSupport = nonNullOr alsaBackend packageArgs.alsaSupport or null;
+  portaudioBackend = audioBackend == "portaudio";
+  portaudioSupport = nonNullOr portaudioBackend packageArgs.portaudioSupport or null;
+  pulseBackend = audioBackend == "pulse";
+  pulseSupport = nonNullOr pulseBackend packageArgs.pulseSupport or null;
+
+  dsdSupport = nonNullOr true packageArgs.dsdSupport or null;
+  faad2Support = nonNullOr true packageArgs.faad2Support or null;
+  ffmpegSupport = nonNullOr true packageArgs.ffmpegSupport or null;
+  opusSupport = nonNullOr true packageArgs.opusSupport or null;
+  resampleSupport = nonNullOr true packageArgs.resampleSupport or null;
+  sslSupport = nonNullOr true packageArgs.sslSupport or null;
+
+  binName = "squeezelite${optionalString pulseBackend "-pulse"}";
 
   appleSdkPackages = darwin.apple_sdk_11_0.frameworks;
 in
+assert alsaBackend -> alsaSupport;
+assert pulseBackend -> pulseSupport;
+
 assert stdenv.hostPlatform.isDarwin -> darwin != null;
 stdenv.mkDerivation {
   # the nixos module uses the pname as the binary name
@@ -124,6 +146,6 @@ stdenv.mkDerivation {
     mainProgram = binName;
     maintainers = with maintainers; [ adamcstephens ];
     platforms =
-      if (audioBackend == "pulse") then platforms.linux else platforms.linux ++ platforms.darwin;
+      platforms.linux ++ lib.optionals (!alsaSupport && !pulseSupport) [ platforms.darwin ];
   };
 }

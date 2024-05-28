@@ -6,9 +6,14 @@ let
   dataDir = "/var/lib/squeezelite";
   cfg = config.services.squeezelite;
   pkg =
-    if cfg.pulseAudio then pkgs.squeezelite.override { audioBackend = "pulse"; } else pkgs.squeezelite;
-  bin = "${pkg}/bin/${pkg.pname}";
-
+    if cfg.pulseAudio then
+      pkgs.squeezelite.override {
+        audioBackend = "pulse";
+        pulseSupport = null;
+      }
+    else
+      pkgs.squeezelite;
+  bin = pkg + "/bin/${pkg.meta.mainProgram}";
 in
 {
 
