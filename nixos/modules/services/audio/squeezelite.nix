@@ -16,9 +16,9 @@ let
     types
     ;
 
-  dataDir = "/var/lib/squeezelite";
   cfg = config.services.squeezelite;
   bin = cfg.finalPackage + "/bin/${cfg.finalPackage.meta.mainProgram}";
+  stateDir = "squeezelite";
 in
 {
 
@@ -70,8 +70,8 @@ in
         documentation = [ "man:squeezelite(5)" ];
         serviceConfig = {
           DynamicUser = true;
-          ExecStart = "${bin} -N ${dataDir}/player-name ${cfg.extraArguments}";
-          StateDirectory = builtins.baseNameOf dataDir;
+          ExecStart = "${bin} -N %S/${stateDir}/player-name ${cfg.extraArguments}";
+          StateDirectory = stateDir;
           SupplementaryGroups = "audio";
         };
       };
