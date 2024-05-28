@@ -25,7 +25,7 @@ in
   ###### interface
 
   options.services.squeezelite = {
-    enable = mkEnableOption "Squeezelite, a software Squeezebox emulator";
+    enable = mkEnableOption "the Squeezelite headless player for Lyrion Music Server";
 
     package = mkPackageOption pkgs "Squeezelite" { default = [ "squeezelite" ]; };
 
@@ -33,7 +33,7 @@ in
       readOnly = true;
     };
 
-    pulseAudio = mkEnableOption "pulseaudio support";
+    pulseAudio = mkEnableOption "PulseAudio backend";
 
     extraArguments = mkOption {
       default = "";
@@ -66,7 +66,8 @@ in
           "network.target"
           "sound.target"
         ];
-        description = "Software Squeezebox emulator";
+        description = "Squeezelite headless player for Lyrion Music Server";
+        documentation = [ "man:squeezelite(5)" ];
         serviceConfig = {
           DynamicUser = true;
           ExecStart = "${bin} -N ${dataDir}/player-name ${cfg.extraArguments}";

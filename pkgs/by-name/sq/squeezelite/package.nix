@@ -140,7 +140,7 @@ stdenv.mkDerivation {
   };
 
   meta = with lib; {
-    description = "Lightweight headless squeezebox client emulator";
+    description = "Lightweight, headless player for Lyrion Music Server";
     homepage = "https://github.com/ralph-irving/squeezelite";
     license = with licenses; [ gpl3Plus ] ++ optional dsdSupport bsd2;
     mainProgram = binName;
