@@ -40,7 +40,7 @@ buildGoModule rec {
 
   vendorHash = "sha256-rMs7FP515aClzt9sjgIQHiYo5SYa2tDHrVRhtT+I8aM=";
 
-  ldflags = [ "-s" "-w" ];
+  separateDebugInfo = true;
 
   nativeBuildInputs = [
     blueprint-compiler
@@ -56,44 +56,44 @@ buildGoModule rec {
     libnotify
   ];
 
-  pythonPath = with python3.pkgs; [
-    dbus-python
-    pygobject3
-    tendo
+  pythonPath = [
+    python3.pkgs.dbus-python
+    python3.pkgs.pygobject3
+    python3.pkgs.tendo
   ];
 
   postInstall = ''
     blueprint-compiler batch-compile gui/src/gui/.templates/ gui/src/gui/ gui/src/gui/*.blp
     chmod +x gui/goldwarden_ui_main.py
 
-    mkdir -p $out/share/goldwarden
-    cp -r gui/* $out/share/goldwarden/
-    ln -s $out/share/goldwarden/goldwarden_ui_main.py $out/bin/goldwarden-gui
-    rm $out/share/goldwarden/{com.quexten.Goldwarden.desktop,com.quexten.Goldwarden.metainfo.xml,goldwarden.svg,python3-requirements.json,requirements.txt}
+    install -d "$out/share/goldwarden"
+    cp -r -t "$out/share/goldwarden/" gui/*
+    ln -s "$out/share/goldwarden/goldwarden_ui_main.py" "$out/bin/goldwarden-gui"
+    rm "$out/share/goldwarden/"{com.quexten.Goldwarden.desktop,com.quexten.Goldwarden.metainfo.xml,goldwarden.svg,python3-requirements.json,requirements.txt}
 
-    install -D gui/com.quexten.Goldwarden.desktop -t $out/share/applications
-    install -D gui/goldwarden.svg -t $out/share/icons/hicolor/scalable/apps
-    install -Dm644 gui/com.quexten.Goldwarden.metainfo.xml -t $out/share/metainfo
-    install -Dm644 cli/resources/com.quexten.goldwarden.policy -t $out/share/polkit-1/actions
+    install -Dt "$out/share/applications" gui/com.quexten.Goldwarden.desktop
+    install -Dt "$out/share/icons/hicolor/scalable/apps" gui/goldwarden.svg
+    install -Dt "$out/share/metainfo" -m 644 gui/com.quexten.Goldwarden.metainfo.xml
+    install -Dt "$out/share/polkit-1/actions" -m 644 cli/resources/com.quexten.goldwarden.policy
 
-    install -D cli/browserbiometrics/chrome-com.8bit.bitwarden.json $out/etc/chrome/native-messaging-hosts/com.8bit.bitwarden.json
-    install -D cli/browserbiometrics/chrome-com.8bit.bitwarden.json $out/etc/chromium/native-messaging-hosts/com.8bit.bitwarden.json
-    install -D cli/browserbiometrics/chrome-com.8bit.bitwarden.json $out/etc/edge/native-messaging-hosts/com.8bit.bitwarden.json
-    install -D cli/browserbiometrics/mozilla-com.8bit.bitwarden.json $out/lib/mozilla/native-messaging-hosts/com.8bit.bitwarden.json
+    install -Dm 755 cli/browserbiometrics/chrome-com.8bit.bitwarden.json "$out/etc/chrome/native-messaging-hosts/com.8bit.bitwarden.json"
+    install -Dm 755 cli/browserbiometrics/chrome-com.8bit.bitwarden.json "$out/etc/chromium/native-messaging-hosts/com.8bit.bitwarden.json"
+    install -Dm 755 cli/browserbiometrics/chrome-com.8bit.bitwarden.json "$out/etc/edge/native-messaging-hosts/com.8bit.bitwarden.json"
+    install -Dm 755 cli/browserbiometrics/mozilla-com.8bit.bitwarden.json "$out/lib/mozilla/native-messaging-hosts/com.8bit.bitwarden.json"
   '';
 
   dontWrapGApps = true;
   postFixup = ''
     makeWrapperArgs+=("''${gappsWrapperArgs[@]}")
-    wrapPythonProgramsIn $out/share/goldwarden "$out/share/goldwarden $pythonPath"
+    wrapPythonProgramsIn "$out/share/goldwarden" "$out/share/goldwarden $pythonPath"
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Feature-packed Bitwarden compatible desktop integration";
     homepage = "https://github.com/quexten/goldwarden";
-    license = licenses.mit;
-    maintainers = with maintainers; [ arthsmn justanotherariel ];
+    license = lib.licenses.mit;
     mainProgram = "goldwarden";
-    platforms = platforms.linux; # Support for other platforms is not yet ready, see https://github.com/quexten/goldwarden/issues/4
+    maintainers = [ lib.maintainers.arthsmn lib.maintainers.justanotherariel ];
+    platforms = lib.platforms.linux; # Support for other platforms is not yet ready, see https://github.com/quexten/goldwarden/issues/4
   };
 }
