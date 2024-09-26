@@ -58,6 +58,7 @@ let
     unknownModule
     ;
   inherit (lib.strings)
+    escapeNixIdentifier
     isConvertibleWithToString
     ;
 
@@ -345,20 +346,42 @@ let
   collectModules = class: let
 
       # Like unifyModuleSyntax, but also imports paths and calls functions if necessary
-      loadModule = args: fallbackFile: fallbackKey: m:
+      loadModule = args: fallbackClass: fallbackFile: fallbackKey: m:
         if isFunction m then
-          unifyModuleSyntax fallbackFile fallbackKey (applyModuleArgs fallbackKey m args)
+          unifyModuleSyntax fallbackClass fallbackFile fallbackKey (applyModuleArgs fallbackKey m args)
         else if isAttrs m then
           if m._type or "module" == "module" then
-            unifyModuleSyntax fallbackFile fallbackKey m
+            unifyModuleSyntax fallbackClass fallbackFile fallbackKey m
           else if m._type == "if" || m._type == "override" then
-            loadModule args fallbackFile fallbackKey { config = m; }
+            loadModule args fallbackClass fallbackFile fallbackKey { config = m; }
+          else if m._type == "import" then
+            let
+              badAttrs = removeAttrs m [ "_type" "class" "content" "file" "key" ];
+              importArgs = {
+                inherit fallbackClass fallbackFile fallbackKey;
+                ${if m ? class then "class" else null} = if isFunction m.class then m.class importArgs else m.class;
+                ${if m ? file then "file" else null} = if isFunction m.file then m.file importArgs else m.file;
+                ${if m ? key then "key" else null} = if isFunction m.key then m.key importArgs else m.key;
+              };
+              class' = importArgs.class or fallbackClass;
+              file = importArgs.file or fallbackFile;
+              key = importArgs.key or fallbackKey;
+            in
+            if badAttrs != { } then
+              throw "Special module import (probably from `lib.modules.mkImport`) has unsupported attributes: ${toString (map escapeNixIdentifier (attrNames badAttrs))}"
+            else
+              loadModule args class' file key m.content
           else
             throw (messages.not_a_module { inherit fallbackFile; value = m; _type = m._type; expectedClass = class; })
         else if isList m then
           let defs = [{ file = fallbackFile; value = m; }]; in
           throw "Module imports can't be nested lists. Perhaps you meant to remove one level of lists? Definitions: ${showDefs defs}"
-        else unifyModuleSyntax (toString m) (toString m) (applyModuleArgsIfFunction (toString m) (import m) args);
+        else
+          let
+            file = toString m;
+            key = file;
+          in
+          unifyModuleSyntax fallbackClass file key (applyModuleArgsIfFunction key (import m) args);
 
       checkModule =
         if class != null
@@ -404,7 +427,7 @@ let
           };
         in parentFile: parentKey: initialModules: args: collectResults (imap1 (n: x:
           let
-            module = checkModule (loadModule args parentFile "${parentKey}:anon-${toString n}" x);
+            module = checkModule (loadModule args null parentFile "${parentKey}:anon-${toString n}" x);
             collectedImports = collectStructuredModules module._file module.key module.imports args;
           in {
             key = module.key;
@@ -453,12 +476,11 @@ let
       filterModules modulesPath (collectStructuredModules unknownModule "" initialModules args);
 
   /* Wrap a module with a default location for reporting errors. */
-  setDefaultModuleLocation = file: m:
-    { _file = file; imports = [ m ]; };
+  setDefaultModuleLocation = file: m: mkImport { inherit file; } m;
 
   /* Massage a module into canonical form, that is, a set consisting
      of ‘options’, ‘config’ and ‘imports’ attributes. */
-  unifyModuleSyntax = file: key: m:
+  unifyModuleSyntax = class: file: key: m:
     let
       addMeta = config: if m ? meta
         then mkMerge [ config { meta = m.meta; } ]
@@ -473,7 +495,7 @@ let
         throw "Module `${key}' has an unsupported attribute `${head (attrNames badAttrs)}'. This is caused by introducing a top-level `config' or `options' attribute. Add configuration attributes immediately on the top level instead, or move all of them (namely: ${toString (attrNames badAttrs)}) into the explicit `config' attribute."
       else
         { _file = toString m._file or file;
-          _class = m._class or null;
+          _class = m._class or class;
           key = toString m.key or key;
           disabledModules = m.disabledModules or [];
           imports = m.imports or [];
@@ -484,7 +506,7 @@ let
       # shorthand syntax
       throwIfNot (isAttrs m) "module ${file} (${key}) does not look like a module."
       { _file = toString m._file or file;
-        _class = m._class or null;
+        _class = m._class or class;
         key = toString m.key or key;
         disabledModules = m.disabledModules or [];
         imports = m.require or [] ++ m.imports or [];
@@ -709,7 +731,7 @@ let
 
   throwDeclarationTypeError = loc: actualTag: file:
     let
-      name = lib.strings.escapeNixIdentifier (lib.lists.last loc);
+      name = escapeNixIdentifier (lib.lists.last loc);
       path = showOption loc;
       depth = length loc;
 
@@ -1042,6 +1064,14 @@ let
     mkIf
       (if assertion then true else throw "\nFailed assertion: ${message}")
       content;
+
+  mkImport = importArgs@{ class ? null, file ? null, key ? null, ... }: content:
+    assert !(importArgs ? _type);
+    assert !(importArgs ? content);
+    importArgs //
+    { _type = "import";
+      inherit content;
+    };
 
   mkMerge = contents:
     { _type = "merge";
@@ -1470,9 +1500,9 @@ let
         mergeModules
         mergeModules'
         pushDownProperties
-        unifyModuleSyntax
         ;
       collectModules = collectModules null;
+      unifyModuleSyntax = unifyModuleSyntax null;
     };
 
   /**
@@ -1618,6 +1648,7 @@ private //
     mkForce
     mkIf
     mkImageMediaOverride
+    mkImport
     mkMerge
     mkMergedOptionModule
     mkOptionDefault
