@@ -353,6 +353,18 @@ let
             unifyModuleSyntax fallbackFile fallbackKey m
           else if m._type == "if" || m._type == "override" then
             loadModule args fallbackFile fallbackKey { config = m; }
+          else if m._type == "import" then
+            let
+              importArgs = {
+                inherit fallbackFile fallbackKey;
+                ${if m ? _file then "file" else null} = if isFunction m._file then m._file importArgs else m._file;
+                ${if m ? key then "key" else null} = if isFunction m.key then m.key importArgs else m.key;
+              };
+              file = importArgs.file or fallbackFile;
+              key = importArgs.key or fallbackKey;
+            in
+            assert removeAttrs m [ "_type" "_file" "key" "content" ] == { };
+            loadModule args file key m.content
           else
             throw (messages.not_a_module { inherit fallbackFile; value = m; _type = m._type; expectedClass = class; })
         else if isList m then
@@ -453,8 +465,7 @@ let
       filterModules modulesPath (collectStructuredModules unknownModule "" initialModules args);
 
   /* Wrap a module with a default location for reporting errors. */
-  setDefaultModuleLocation = file: m:
-    { _file = file; imports = [ m ]; };
+  setDefaultModuleLocation = file: m: mkImport file null m;
 
   /* Massage a module into canonical form, that is, a set consisting
      of ‘options’, ‘config’ and ‘imports’ attributes. */
@@ -1012,6 +1023,13 @@ let
     mkIf
       (if assertion then true else throw "\nFailed assertion: ${message}")
       content;
+
+  mkImport = file: key: content:
+    { _type = "import";
+      ${if file != null then "_file" else null} = file;
+      ${if key != null then "key" else null} = key;
+      inherit content;
+    };
 
   mkMerge = contents:
     { _type = "merge";
@@ -1588,6 +1606,7 @@ private //
     mkForce
     mkIf
     mkImageMediaOverride
+    mkImport
     mkMerge
     mkMergedOptionModule
     mkOptionDefault
