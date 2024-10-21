@@ -6,6 +6,7 @@
   callPackage,
   fetchFromGitHub,
   fetchurl,
+  luaPackagesExtensions,
   makeBinaryWrapper,
 }:
 
@@ -66,12 +67,17 @@ let
                 final: prev:
                 lib.optionalAttrs config.allowAliases (import ../../lua-modules/aliases.nix lib final prev);
 
-              extensions = lib.composeManyExtensions [
-                aliases
-                generatedPackages
-                overriddenPackages
-                overrides
-              ];
+              extensions = lib.composeManyExtensions (
+                [
+                  aliases
+                  generatedPackages
+                  overriddenPackages
+                ]
+                ++ luaPackagesExtensions
+                ++ [
+                  overrides
+                ]
+              );
             in
             makeScopeWithSplicing' {
               inherit otherSplices;
