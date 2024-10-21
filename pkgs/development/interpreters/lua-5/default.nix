@@ -1,5 +1,5 @@
 # similar to interpreters/python/default.nix
-{ stdenv, config, lib, callPackage, fetchFromGitHub, fetchurl, makeBinaryWrapper }:
+{ stdenv, config, lib, callPackage, fetchFromGitHub, fetchurl, luaPackagesExtensions, makeBinaryWrapper }:
 
 
 let
@@ -44,12 +44,13 @@ let
             lib.optionalAttrs config.allowAliases
               (import ../../lua-modules/aliases.nix lib final prev);
 
-          extensions = lib.composeManyExtensions [
+          extensions = lib.composeManyExtensions ([
             aliases
             generatedPackages
             overriddenPackages
+          ] ++ luaPackagesExtensions ++ [
             overrides
-          ];
+          ]);
         in makeScopeWithSplicing' {
           inherit otherSplices;
           f = lib.extends extensions luaPackagesFun;
