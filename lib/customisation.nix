@@ -156,32 +156,73 @@ rec {
     let
       fArgs = functionArgs f;
       # Creates a functor with the same arguments as f
-      mirrorArgs = g: setFunctionArgs g fArgs;
+      mirrorFArgs = g: setFunctionArgs g fArgs;
     in
-    mirrorArgs (
+    mirrorFArgs (
       origArgs:
       let
-        # Fix `origArgs`, if necessary.
-        origArgs' = if isFunction origArgs then origArgs origArgs' else origArgs;
-        result = f origArgs';
+        origArgsIsUnfixed = isFunction origArgs;
+        unfixedOrigArgs = if origArgsIsUnfixed then origArgs else finalArgs: origArgs;
+        fixedOrigArgs = if origArgsIsUnfixed then origArgs fixedOrigArgs else origArgs;
+        result = f fixedOrigArgs;
 
-        # Re-call the function but with different arguments
-        overrideArgs = mirrorArgs (
-          newArgs:
+        overrideCallWithArgs =
+          g:
           let
-            # Legacy convention: `overrideWith (prevArgs: { })`
-            newArgs' = if isFunction newArgs then newArgs origArgs' else newArgs;
-            # Overlay convention: `overrideWith (finalArgs: prevArgs: { })`
-            newArgsIsOverlay = isFunction newArgs';
+            gArgs = functionArgs g;
+            # Creates a functor with the same arguments as g
+            mirrorGArgs = h: setFunctionArgs h gArgs;
           in
-          makeOverridable (if newArgsIsOverlay then mergeFunctionArgs newArgs f else f) (
-            if newArgsIsOverlay then extends newArgs (toFunction origArgs) else origArgs' // newArgs'
-          )
-        );
+          mirrorGArgs (
+            newArgs:
+            let
+              newArgsIsFunction = isFunction newArgs;
+              unfixedArgs =
+                finalArgs:
+                let
+                  fixedOrigArgs' = unfixedOrigArgs finalArgs;
+                in
+                fixedOrigArgs'
+                // (
+                  if newArgsIsFunction then
+                    let
+                      newArgsIsFlippedOverlay = isFunction (newArgs fixedOrigArgs');
+                    in
+                    if newArgsIsFlippedOverlay then
+                      # Flipped overlay convention: `overrideArgs (prevArgs: finalArgs: { })`
+                      newArgs fixedOrigArgs' finalArgs
+                    else
+                      # Overrides convention: `overrideArgs (prevArgs: { })`
+                      newArgs fixedOrigArgs'
+                  else
+                    newArgs
+                );
+              fixedOrigArgs' = if origArgsIsUnfixed then origArgs fixedArgs else origArgs;
+              newArgsIsFlippedOverlay = isFunction (newArgs fixedOrigArgs');
+              fixedArgs =
+                fixedOrigArgs'
+                // (
+                  if newArgsIsFunction then
+                    if newArgsIsFlippedOverlay then
+                      # Flipped overlay convention: `overrideArgs (prevArgs: finalArgs: { })`
+                      newArgs fixedOrigArgs' fixedArgs
+                    else
+                      # Overrides convention: `overrideArgs (prevArgs: { })`
+                      newArgs fixedOrigArgs'
+                  else
+                    newArgs
+                );
+              argsMustBeUnfixed = origArgsIsUnfixed || (newArgsIsFunction && newArgsIsFlippedOverlay);
+              args = if argsMustBeUnfixed then unfixedArgs else fixedArgs;
+            in
+            makeOverridable g args
+          );
+        # Re-call the function but with different arguments
+        overrideArgs = overrideCallWithArgs f;
         # Change the result of the function call by replacing the function with g
         overrideCall = g: makeOverridable g origArgs;
         # Change the result of the function call by applying g to it
-        overrideResult = g: makeOverridable (mirrorArgs (args: g (f args))) origArgs;
+        overrideResult = g: overrideCall (mirrorFArgs (args: g (f args)));
       in
       if isAttrs result then
         result
@@ -194,13 +235,15 @@ rec {
             fdrvFn:
             let
               fdrvFnArgs = functionArgs fdrvFn;
-              newArgNames = filter (argName: !(fArgs ? ${argName})) (attrNames fdrvFnArgs);
-              safeF = if newArgNames == [ ] then f else args: f (removeAttrs args newArgNames);
-              mergedArgs = mapAttrs (argName: argHasDefault: argHasDefault && fArgs.${argName} or true) (
-                fArgs // fdrvFnArgs
-              );
+              mergedFArgs = mergeFunctionArgAttrs fArgs fdrvFnArgs;
+              mirrorMergedFArgs = g: setFunctionArgs g mergedFArgs;
+              uniqueMergedFArgNames = filter (argName: !(fArgs ? ${argName})) (attrNames fdrvFnArgs);
+              safeF =
+                if uniqueMergedFArgNames == [ ] then f else args: f (removeAttrs args uniqueMergedFArgNames);
+              mergedF = mirrorMergedFArgs (args: (safeF args).overrideAttrs (fdrvFn args));
+              overrideMergedArgs = overrideCallWithArgs mergedF;
             in
-            overrideCall (setFunctionArgs (args: (safeF args).overrideAttrs (fdrvFn args)) mergedArgs);
+            overrideMergedArgs;
         }
       else if isFunction result then
         # Transform the result into a functor while propagating its arguments
@@ -490,10 +533,10 @@ rec {
     let
       f = if isFunction fn then fn else import fn;
       auto = intersectAttrs (functionArgs f) autoArgs;
-      mirrorArgs = mirrorFunctionArgs f;
+      mirrorFArgs = mirrorFunctionArgs f;
       origArgs = auto // args;
       pkgs = f origArgs;
-      mkAttrOverridable = name: _: makeOverridable (mirrorArgs (newArgs: (f newArgs).${name})) origArgs;
+      mkAttrOverridable = name: _: makeOverridable (mirrorFArgs (newArgs: (f newArgs).${name})) origArgs;
     in
     if isDerivation pkgs then
       throw (
