@@ -24,6 +24,7 @@ let
     isAttrs
     isBool
     isDerivation
+    isFunction
     isInt
     isList
     isString
@@ -108,7 +109,7 @@ let
                 f0 self super
               else x;
         in
-          makeDerivationExtensible (self: attrs // (if builtins.isFunction f0 || f0?__functor then f self attrs else f0)))
+          makeDerivationExtensible (self: attrs // (if isFunction f0 then f self attrs else f0)))
       attrs;
 
   knownHardeningFlags = [

@@ -1035,8 +1035,7 @@ in {
 
     : 1\. Function argument
   */
-  isFunction = f: builtins.isFunction f ||
-    (f ? __functor && isFunction (f.__functor f));
+  isFunction = f: builtins.isFunction f || f ? __functor;
 
   /**
     `mirrorFunctionArgs f g` creates a new function `g'` with the same behavior as `g` (`g' x == g x`)

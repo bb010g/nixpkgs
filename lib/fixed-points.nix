@@ -1,4 +1,7 @@
 { lib, ... }:
+let
+  inherit (lib) isFunction;
+in
 rec {
   /**
     `fix f` computes the fixed point of the given function `f`. In other words, the return value is `x` in `x = f x`.
@@ -508,12 +511,12 @@ rec {
   */
   toExtension =
     f:
-    if lib.isFunction f then
+    if isFunction f then
       final: prev:
       let
         fPrev = f prev;
       in
-      if lib.isFunction fPrev then
+      if isFunction fPrev then
         # f is (final: prev: { ... })
         f final prev
       else
