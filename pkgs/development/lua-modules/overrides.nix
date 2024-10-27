@@ -772,6 +772,12 @@ in
     };
   })) {};
 
+  rocks-nvim = prev.rocks-nvim.overrideAttrsWithArgs ({ luarocks, ... }: prevAttrs: {
+    passthru = {
+      inherit luarocks;
+    } // prevAttrs.passthru or { };
+  }) { };
+
   rtp-nvim  = prev.rtp-nvim.overrideAttrs(oa: {
     doCheck = lua.luaversion == "5.1";
     nativeCheckInputs = [ final.nlua final.busted ];
