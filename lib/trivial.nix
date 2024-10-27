@@ -8,6 +8,7 @@ let
     isFunction
     isInt
     functionArgs
+    mergeFunctionArgAttrs
     pathExists
     release
     setFunctionArgs
@@ -1090,6 +1091,13 @@ in {
     g:
     setFunctionArgs g fArgs;
 
+  mergeFunctionArgAttrs =
+    fArgs:
+    gArgs:
+    mapAttrs
+      (argName: argHasDefault: argHasDefault && fArgs.${argName} or true)
+      (fArgs // gArgs);
+
   /**
     `mergeFunctionArgs f g` creates a new function `g'` with the same behavior as `g` (`g' x == g x`)
     but its function arguments merged with `f`.
@@ -1146,20 +1154,13 @@ in {
     :::
   */
   mergeFunctionArgs =
-    let
-      mergeFunctionArgAttrs =
-        fArgs:
-        gArgs:
-        mapAttrs
-          (argName: argHasDefault: argHasDefault && fArgs.${argName} or true)
-          (fArgs // gArgs);
-    in
     f:
     let
       fArgs = functionArgs f;
+      mergeFunctionArgs' = g:
+        setFunctionArgs g (mergeFunctionArgAttrs fArgs (functionArgs g));
     in
-    g:
-    setFunctionArgs g (mergeFunctionArgAttrs fArgs (functionArgs g));
+    mergeFunctionArgs';
 
   /**
     Turns any non-callable values into constant functions.
