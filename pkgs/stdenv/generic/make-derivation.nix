@@ -16,6 +16,7 @@ let
     elem
     elemAt
     extendDerivation
+    extends
     filter
     findFirst
     getDev
@@ -37,6 +38,7 @@ let
     remove
     splitString
     subtractLists
+    toExtension
     unique
     zipAttrsWith
   ;
@@ -62,11 +64,12 @@ let
     Most arguments are also passed through to the underlying call of [`builtins.derivation`](https://nixos.org/manual/nix/stable/language/derivations).
     :::
   */
-  mkDerivation =
-    fnOrAttrs:
-      if builtins.isFunction fnOrAttrs
-      then makeDerivationExtensible fnOrAttrs
-      else makeDerivationExtensibleConst fnOrAttrs;
+  mkDerivation = fnOrAttrs:
+    # Why can't `lib.isFunction` be used here?
+    if builtins.isFunction fnOrAttrs then
+      makeDerivationExtensible fnOrAttrs
+    else
+      makeDerivationExtensibleConst fnOrAttrs;
 
   checkMeta = import ./check-meta.nix {
     inherit lib config;
@@ -87,19 +90,17 @@ let
       #              ^^^^
 
       overrideAttrs = f0:
-        makeDerivationExtensible
-          (lib.extends (lib.toExtension f0) rattrs);
+        makeDerivationExtensible (extends (toExtension f0) rattrs);
 
-      finalPackage =
-        mkDerivationSimple overrideAttrs args;
+      finalPackage = mkDerivationSimple overrideAttrs args;
+    in
+    finalPackage;
 
-    in finalPackage;
-
-  #makeDerivationExtensibleConst = attrs: makeDerivationExtensible (_: attrs);
+  # makeDerivationExtensibleConst = attrs: makeDerivationExtensible (_: attrs);
   # but pre-evaluated for a slight improvement in performance.
-  makeDerivationExtensibleConst = attrs:
-    mkDerivationSimple
-      (f0:
+  makeDerivationExtensibleConst = args:
+    let
+      overrideAttrs = f0:
         let
           f = self: super:
             let x = f0 super;
@@ -109,8 +110,11 @@ let
                 f0 self super
               else x;
         in
-          makeDerivationExtensible (self: attrs // (if isFunction f0 then f self attrs else f0)))
-      attrs;
+        makeDerivationExtensible (self: args // (if isFunction f0 then f self args else f0));
+
+      finalPackage = mkDerivationSimple overrideAttrs args;
+    in
+    finalPackage;
 
   knownHardeningFlags = [
     "bindnow"
