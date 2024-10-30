@@ -1,0 +1,22 @@
+diff --git a/lua/rocks/config/internal.lua b/lua/rocks/config/internal.lua
+index 2d8bf6d..10d32b5 100644
+--- a/lua/rocks/config/internal.lua
++++ b/lua/rocks/config/internal.lua
+@@ -25,6 +25,8 @@ local fs = require("rocks.fs")
+ 
+ local default_rocks_path = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "rocks")
+ 
++local fallback_luarocks_binary = "luarocks"
++
+ ---@param rocks_path string
+ ---@return string
+ local function get_default_luarocks_binary(rocks_path)
+@@ -33,7 +35,7 @@ local function get_default_luarocks_binary(rocks_path)
+     local luarocks_glob =
+         vim.fs.joinpath(rocks_path, "lib", "luarocks", "rocks-5.1", "luarocks", "*", "bin", "luarocks")
+     local default_luarocks_path = vim.fn.glob(luarocks_glob)
+-    return vim.fn.executable(default_luarocks_path) == 1 and default_luarocks_path or "luarocks"
++    return vim.fn.executable(default_luarocks_path) == 1 and default_luarocks_path or fallback_luarocks_binary
+ end
+ 
+ local default_luarocks_binary = get_default_luarocks_binary(default_rocks_path)

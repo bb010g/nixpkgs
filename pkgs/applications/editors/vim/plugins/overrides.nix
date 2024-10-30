@@ -2588,11 +2588,20 @@ in
     nvimRequireCheck = "rest-nvim";
   };
 
-  rocks-nvim = neovimUtils.buildNeovimPlugin (finalNeovimAttrs: {
+  rocks-nvim = (neovimUtils.buildNeovimPlugin (finalNeovimAttrs: {
     luaAttr = luaPackages.rocks-nvim;
     nvimRequireCheck = "rocks";
     passthru.rocks_config = {
-      luarocks_binary = lib.meta.getExe' finalNeovimAttrs.luaAttr.passthru.luarocks "luarocks";
+      luarocks_binary = lib.meta.getExe' finalNeovimAttrs.luaAttr.luarocks "luarocks";
+    };
+  })).overrideAttrs (finalAttrs: prevAttrs: {
+    passthru = prevAttrs.passthru or { } // {
+      initLua = prevAttrs.initLua or "" + ''
+        do
+          local rocks_config = ${lib.generators.toLua { } finalAttrs.passthru.rocks_config}
+          vim.g.rocks_nvim = rocks_config
+        end
+      '';
     };
   });
 

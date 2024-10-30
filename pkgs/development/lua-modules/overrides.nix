@@ -772,9 +772,16 @@ in
     };
   })) {};
 
-  rocks-nvim = prev.rocks-nvim.overrideAttrsWithArgs ({ luarocks, ... }: prevAttrs: {
+  rocks-nvim = prev.rocks-nvim.overrideAttrsWithArgs (args: prevAttrs: {
+    patches = prevAttrs.patches or [ ] ++ [
+      ./rocks-nvim.patch
+    ];
+    postPatch = prevAttrs.postPatch or "" + ''
+      substituteInPlace lua/rocks/config/internal.lua \
+        --replace 'local fallback_luarocks_binary = "luarocks"' 'local fallback_luarocks_binary = '${lib.escapeShellArg (lib.generators.toLua { } (lib.meta.getExe' args.luarocks "luarocks"))}
+    '';
     passthru = {
-      inherit luarocks;
+      inherit (args) luarocks;
     } // prevAttrs.passthru or { };
   }) { };
 
