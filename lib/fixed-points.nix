@@ -1,5 +1,6 @@
 { lib, ... }:
 let
+  inherit (builtins) deepSeq mapAttrs throw;
   inherit (lib) isFunction;
 in
 rec {
@@ -152,6 +153,29 @@ rec {
       x' = f x;
     in
     if x' == x then x else converge f x';
+
+  fixExtensionPoints =
+    let
+      fakeUnfixedExtensionPoints = throw "lib.fixExtensionPoints: Unfixed extension point functions must wait for `finalExtensionPoints` before evaluating `unfixedExtensionPoints`.";
+    in
+    unfixedExtensionPoints@{ result, ... }:
+    # maybe __unfix__ should come with __refix__.
+    # maybe extensions / customisations should be named/enumerated.
+    # maybe finalisation should be shared?
+    # override builtins.derivation, override stdenv.mkDerivation, override mkPythonDerivation.
+    # optimisation should occur for as many levels/layers as possible.
+    # normal Nixpkgs package: `callPackage` `args` (`.override`) -> `stdenv.mkDerivation` `attrs` (`.overrideAttrs`) -> derivation `drvAttrs` (`.overrideDerivation`)
+    #
+    # "push-down" function?
+    let
+      finalExtensionPoints = mapAttrs (
+        extensionPointName: unfixedExtensionPoint:
+        deepSeq (unfixedExtensionPoint fakeUnfixedExtensionPoints) (
+          unfixedExtensionPoint unfixedExtensionPoints finalExtensionPoints
+        )
+      ) unfixedExtensionPoints;
+    in
+    finalExtensionPoints.result;
 
   /**
     Extend a function using an overlay.
@@ -330,6 +354,32 @@ rec {
       prev // overlay final prev
     );
 
+  extendExtensionPoints =
+    unfixedExtensionPoints: finalExtensionPoints:
+    let
+      prevUnfixedExtensionPoints = unfixedExtensionPoints;
+      prevExtensionPoints = finalExtensionPoints;
+    in
+    mapAttrs (
+      extensionPointName: prevUnfixedExtensionPoint:
+      let
+        prevExtensionPoint = prevExtensionPoints.${extensionPointName};
+        extend =
+          extensionPointOverlay:
+          let
+            unfixedExtensionPoint =
+              unfixedExtensionPoints: finalExtensionPoints:
+              prevExtensionPoint
+              // extensionPointOverlay unfixedExtensionPoints finalExtensionPoints prevExtensionPoints;
+            unfixedExtensionPoints = prevUnfixedExtensionPoints // {
+              ${extensionPointName} = unfixedExtensionPoint;
+            };
+          in
+          fixExtensionPoints unfixedExtensionPoints;
+      in
+      extend
+    ) prevUnfixedExtensionPoints;
+
   /**
     Compose two overlay functions and return a single overlay function that combines them.
     For more details see: [composeManyExtensions](#function-library-lib.fixedPoints.composeManyExtensions).
@@ -445,14 +495,19 @@ rec {
     : 2\. Function argument
   */
   makeExtensibleWithCustomName =
-    extenderName: rattrs:
-    fix' (
-      self:
-      (rattrs self)
-      // {
-        ${extenderName} = f: makeExtensibleWithCustomName extenderName (extends f rattrs);
-      }
-    );
+    extenderName:
+    let
+      makeExtensible =
+        rattrs:
+        fix' (
+          self:
+          rattrs self
+          // {
+            ${extenderName} = f: makeExtensible (extends f rattrs);
+          }
+        );
+    in
+    makeExtensible;
 
   /**
     Convert to an extending function (overlay).
