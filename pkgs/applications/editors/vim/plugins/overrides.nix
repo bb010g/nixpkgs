@@ -2615,6 +2615,11 @@ in
     nvimRequireCheck = "rocks-dev";
   };
 
+  rocks-git-nvim = neovimUtils.buildNeovimPlugin {
+    luaAttr = luaPackages.rocks-git-nvim;
+    nvimRequireCheck = "rocks-git";
+  };
+
   roslyn-nvim = super.roslyn-nvim.overrideAttrs {
     nvimRequireCheck = "roslyn";
   };
