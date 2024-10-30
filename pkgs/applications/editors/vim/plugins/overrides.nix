@@ -2588,10 +2588,13 @@ in
     nvimRequireCheck = "rest-nvim";
   };
 
-  rocks-nvim = neovimUtils.buildNeovimPlugin {
+  rocks-nvim = neovimUtils.buildNeovimPlugin (finalNeovimAttrs: {
     luaAttr = luaPackages.rocks-nvim;
     nvimRequireCheck = "rocks";
-  };
+    passthru.rocks_config = {
+      luarocks_binary = lib.meta.getExe' finalNeovimAttrs.luaAttr.passthru.luarocks "luarocks";
+    };
+  });
 
   rocks-config-nvim = neovimUtils.buildNeovimPlugin {
     luaAttr = luaPackages.rocks-config-nvim;
