@@ -2610,6 +2610,11 @@ in
     nvimRequireCheck = "rocks-config";
   };
 
+  rocks-dev-nvim = neovimUtils.buildNeovimPlugin {
+    luaAttr = luaPackages.rocks-dev-nvim;
+    nvimRequireCheck = "rocks-dev";
+  };
+
   roslyn-nvim = super.roslyn-nvim.overrideAttrs {
     nvimRequireCheck = "roslyn";
   };
