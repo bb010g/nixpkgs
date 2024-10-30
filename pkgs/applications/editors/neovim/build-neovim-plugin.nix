@@ -6,8 +6,8 @@
 let
   # sanitizeDerivationName
   normalizeName = lib.replaceStrings [ "." ] [ "-" ];
-in
 
+  buildNeovimPlugin =
   # function to create vim plugin from lua packages that are already packaged in
   # luaPackages
   {
@@ -38,4 +38,7 @@ in
           version = "${originalLuaDrv.version}-unstable-${oa.version}";
         }));
     in
-      finalDrv
+      finalDrv;
+
+in
+buildNeovimPlugin
