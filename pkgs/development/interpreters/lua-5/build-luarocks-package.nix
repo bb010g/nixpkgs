@@ -12,7 +12,55 @@
 }:
 
 let
+  inherit (lib) extends isFunction toExtension;
+
   buildLuarocksPackage =
+    fnOrAttrs:
+    if isFunction fnOrAttrs then
+      buildLuarocksPackageExtensible fnOrAttrs
+    else
+      buildLuarocksPackageExtensibleConst fnOrAttrs;
+
+  buildLuarocksPackageExtensible =
+    rattrs:
+    let
+      # NOTE: The following is a hint that will be printed by the Nix cli when
+      # encountering an infinite recursion. It must not be formatted into
+      # separate lines, because Nix would only show the last line of the comment.
+
+      # An infinite recursion here can be caused by having the attribute names of expression `e` in `.overrideLuaAttrs(finalLuaAttrs: previousLuaAttrs: e)` depend on `finalLuaAttrs`. Only the attribute values of `e` can depend on `finalAttrs`.
+      args = rattrs (args // { inherit finalLuaPackage overrideLuaAttrs; });
+      #              ^^^^
+
+      overrideLuaAttrs = f0: buildLuarocksPackageExtensible (extends (toExtension f0) rattrs);
+
+      finalLuaPackage = buildLuarocksPackageSimple overrideLuaAttrs args;
+    in
+    finalLuaPackage;
+
+  # buildLuarocksPackageExtensibleConst = attrs: buildLuarocksPackageExtensible (_: attrs);
+  # but pre-evaluated for a slight improvement in performance.
+  buildLuarocksPackageExtensibleConst =
+    args:
+    let
+      overrideLuaAttrs =
+        f0:
+        let
+          f =
+            self: super:
+            let
+              x = f0 super;
+            in
+            if isFunction x then f0 self super else x;
+        in
+        buildLuarocksPackageExtensible (self: args // (if isFunction f0 then f self args else f0));
+
+      finalLuaPackage = buildLuarocksPackageSimple overrideLuaAttrs args;
+    in
+    finalLuaPackage;
+
+  buildLuarocksPackageSimple =
+    overrideLuaAttrs:
     {
       pname,
       version,
@@ -243,9 +291,14 @@ let
               runHook postShell
             '';
 
-            passthru = {
-              inherit lua;
-            } // attrs.passthru or { };
+            passthru =
+              {
+                inherit lua;
+              }
+              // attrs.passthru or { }
+              // {
+                inherit overrideLuaAttrs;
+              };
 
             meta = {
               platforms = lua.meta.platforms;
