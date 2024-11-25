@@ -192,7 +192,7 @@ let
             # TODO make it the default variable
             luarocksConfig =
               let
-                externalDepsGenerated = lib.filter (drv: !drv ? luaModule) (
+                externalDepsGenerated = lib.filter (drv: !(luaLib.hasLuaModule drv)) (
                   self.nativeBuildInputs ++ self.propagatedBuildInputs ++ self.buildInputs
                 );
 
@@ -254,7 +254,7 @@ let
             '';
 
             postFixup =
-              lib.optionalString (!dontWrapLuaPrograms) ''
+              lib.optionalString (!self.passthru.dontWrapLuaPrograms) ''
                 wrapLuaPrograms
               ''
               + attrs.postFixup or "";
@@ -293,6 +293,7 @@ let
 
             passthru =
               {
+                inherit dontWrapLuaPrograms;
                 inherit lua;
               }
               // attrs.passthru or { }

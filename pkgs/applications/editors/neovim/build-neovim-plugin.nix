@@ -94,7 +94,7 @@ let
               lua.pkgs.luarocksMoveDataFolder
             ];
             version = "${originalLuaDrv.version}-unstable-${prevLuaDrvAttrs.version}";
-            passthru = attrs.passthru or { } // {
+            passthru = prevLuaDrvAttrs.passthru or { } // attrs.passthru or { } // {
               inherit overrideNeovimAttrs;
             };
           }

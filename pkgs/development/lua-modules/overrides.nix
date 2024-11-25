@@ -709,13 +709,13 @@ in
     };
   });
 
-  nlua = prev.nlua.overrideAttrs(oa: {
-
-    # patchShebang removes the nvim in nlua's shebang so we hardcode one
-    postFixup = ''
-      sed -i -e "1 s|.*|#\!${coreutils}/bin/env -S ${neovim-unwrapped}/bin/nvim -l|" "$out/bin/nlua"
-      '';
-    dontPatchShebangs = true;
+  nlua = prev.nlua.overrideAttrsWithArgs (finalArgs@{ neovim-unwrapped, ... }: finalAttrs: prevAttrs: {
+    buildInputs = prevAttrs.buildInputs ++ [ neovim-unwrapped ];
+    passthru = prevAttrs.passthru or { } // {
+      dontWrapLuaPrograms = true;
+    };
+  }) (prevArgs: {
+    neovim-unwrapped = if prevArgs.neovim-unwrapped or null == null then neovim-unwrapped else prevArgs.neovim-unwrapped;
   });
 
   psl = prev.psl.overrideAttrs (drv: {
@@ -778,7 +778,7 @@ in
     ];
     postPatch = prevAttrs.postPatch or "" + ''
       substituteInPlace lua/rocks/config/internal.lua \
-        --replace 'local fallback_luarocks_binary = "luarocks"' 'local fallback_luarocks_binary = '${lib.escapeShellArg (lib.generators.toLua { } (lib.meta.getExe' args.luarocks "luarocks"))}
+        --replace-fail 'config.fallback_luarocks_binary = "luarocks"' 'config.fallback_luarocks_binary = '${lib.escapeShellArg (lib.generators.toLua { } (lib.meta.getExe' args.luarocks "luarocks"))}
     '';
     passthru = {
       inherit (args) luarocks;
