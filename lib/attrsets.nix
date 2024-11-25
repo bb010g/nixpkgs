@@ -1803,7 +1803,7 @@ rec {
 
     # Inputs
 
-    `output`
+    `outputName`
 
     : 1\. Function argument
 
@@ -1828,19 +1828,65 @@ rec {
 
     :::
   */
-  getOutput = output: pkg:
-    if ! pkg ? outputSpecified || ! pkg.outputSpecified
-      then pkg.${output} or pkg.out or pkg
-      else pkg;
+  getOutput = outputName: pkg:
+    if pkg.outputSpecified or false
+      then pkg
+      else pkg.${outputName} or pkg.out or pkg;
 
   /**
-    Get the first of the `outputs` provided by the package, or the default.
+    Get the outputs, corresponding to `outputNames`, provided by the package, or the default output.
     This function is alligned with `_overrideFirst()` from the `multiple-outputs.sh` setup hook.
-    Like `getOutput`, the function is idempotent.
+    The function is idempotent when concat-mapped:
+    `concatMap (getOutputs [ "a" "b" ]) (concatMap (getOutputs [ "a" "b" ]) [ p q ]) == concatMap (getOutputs [ "a" "b" ]) [ p q ]`.
 
     # Inputs
 
-    `outputs`
+    `outputNames`
+
+    : 1\. Function argument
+
+    `pkg`
+
+    : 2\. Function argument
+
+    # Type
+
+    ```
+    getOutputs :: [String] -> Derivation -> [Derivation]
+    ```
+
+    # Examples
+    :::{.example}
+    ## `lib.attrsets.getOutputs` usage example
+
+    ```nix
+    "${getOutputs [ "bin" "include" "dev" ] pkgs.openssl}"
+    => [ "/nix/store/00000000000000000000000000000000-openssl-1.0.1r-bin" "/nix/store/00000000000000000000000000000000-openssl-1.0.1r-dev" ]
+    "${getOutputs [ "include" ] pkgs.openssl}"
+    => [ "/nix/store/00000000000000000000000000000000-openssl-1.0.1r" ]
+    ```
+
+    :::
+  */
+  getOutputs =
+    outputNames: pkg:
+    let
+      outputs = attrOptionalVals outputNames pkg;
+    in
+    if pkg.outputSpecified or false || outputs == [ ] then
+      [ pkg ]
+    else
+      outputs;
+
+  /**
+    Get the first output, as per `outputNames`, provided by the package, or the default output.
+    This function is alligned with `_overrideFirst()` from the `multiple-outputs.sh` setup hook.
+    Like `getOutput`, the function is idempotent:
+    `getFirstOutput [ "a" "b" ] (getFirstOutput [ "a" "b" ] p) == getFirstOutput [ "a" "b" ] p`.
+
+    # Inputs
+
+    `outputNames`
 
     : 1\. Function argument
 
@@ -1861,20 +1907,13 @@ rec {
     ```nix
     "${getFirstOutput [ "include" "dev" ] pkgs.openssl}"
     => "/nix/store/00000000000000000000000000000000-openssl-1.0.1r-dev"
+    "${getFirstOutput [ "include" ] pkgs.openssl}"
+    => "/nix/store/00000000000000000000000000000000-openssl-1.0.1r"
     ```
 
     :::
   */
-  getFirstOutput =
-    candidates: pkg:
-    let
-      outputs = builtins.filter (name: hasAttr name pkg) candidates;
-      output = builtins.head outputs;
-    in
-    if pkg.outputSpecified or false || outputs == [ ] then
-      pkg
-    else
-      pkg.${output};
+  getFirstOutput = outputNames: pkg: head (getOutputs outputNames pkg);
 
   /**
     Get a package's `bin` output.
@@ -1898,7 +1937,9 @@ rec {
 
     ```nix
     "${getBin pkgs.openssl}"
-    => "/nix/store/00000000000000000000000000000000-openssl-1.0.1r"
+    => "/nix/store/00000000000000000000000000000000-openssl-1.0.1r-bin"
+    "${getBin pkgs.hello}"
+    => "/nix/store/00000000000000000000000000000000-hello-2.10"
     ```
 
     :::
