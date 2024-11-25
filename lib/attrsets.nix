@@ -480,23 +480,23 @@ rec {
   in updates: value: go 0 true value updates;
 
   /**
-    Return the specified attributes from a set.
-
+    Return the attributes specified in `names` from `set`.
+    If a specified attribute doesn't exist, evaluation aborts.
 
     # Inputs
 
-    `nameList`
+    `names`
 
-    : The list of attributes to fetch from `set`. Each attribute name must exist on the attrbitue set
+    : The list of attribute names to get from `set`.
 
     `set`
 
-    : The set to get attribute values from
+    : The attribute set to get values from
 
     # Type
 
     ```
-    attrVals :: [String] -> AttrSet -> [Any]
+    attrVals :: [a & String] -> { ${name :: a & String} :: b; ... :: Any } -> [b]
     ```
 
     # Examples
@@ -504,15 +504,50 @@ rec {
     ## `lib.attrsets.attrVals` usage example
 
     ```nix
-    attrVals ["a" "b" "c"] as
-    => [as.a as.b as.c]
+    attrVals [ "a" "b" "c" ] { a = 2; b = 1; c = 0; }
+    => [ 2 1 0 ]
     ```
 
     :::
   */
   attrVals =
-    nameList:
-    set: map (x: set.${x}) nameList;
+    names:
+    set: map (name: set.${name}) names;
+
+  /**
+    Return the optional attributes specified in `names` from `set`.
+    If a specified attribute doesn't exist, that attribute is skipped.
+
+    # Inputs
+
+    `names`
+
+    : The list of optional attribute names to get from `set`.
+
+    `set`
+
+    : The attribute set to get values from
+
+    # Type
+
+    ```
+    attrOptionalVals :: [a & String] -> { ${name :: a & String}? :: b; ... :: Any } -> [b]
+    ```
+
+    # Examples
+    :::{.example}
+    ## `lib.attrsets.attrOptionalVals` usage example
+
+    ```nix
+    attrOptionalVals [ "a" "b" "c" ] { a = 2; c = 0; }
+    => [ 2 0 ]
+    ```
+
+    :::
+  */
+  attrOptionalVals =
+    names:
+    set: concatMap (name: if set ? ${name} then [ set.${name} ] else [ ]) names;
 
 
   /**
