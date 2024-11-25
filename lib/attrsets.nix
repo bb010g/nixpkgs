@@ -1823,7 +1823,7 @@ rec {
 
     ```nix
     "${getOutput "dev" pkgs.openssl}"
-    => "/nix/store/9rz8gxhzf8sw4kf2j2f1grr49w8zx5vj-openssl-1.0.1r-dev"
+    => "/nix/store/00000000000000000000000000000000-openssl-3.3.2-dev"
     ```
 
     :::
@@ -1861,9 +1861,9 @@ rec {
 
     ```nix
     "${getOutputs [ "bin" "include" "dev" ] pkgs.openssl}"
-    => [ "/nix/store/00000000000000000000000000000000-openssl-1.0.1r-bin" "/nix/store/00000000000000000000000000000000-openssl-1.0.1r-dev" ]
+    => [ "/nix/store/00000000000000000000000000000000-openssl-3.3.2-bin" "/nix/store/00000000000000000000000000000000-openssl-3.3.2-dev" ]
     "${getOutputs [ "include" ] pkgs.openssl}"
-    => [ "/nix/store/00000000000000000000000000000000-openssl-1.0.1r" ]
+    => [ "/nix/store/00000000000000000000000000000000-openssl-3.3.2" ]
     ```
 
     :::
@@ -1906,9 +1906,9 @@ rec {
 
     ```nix
     "${getFirstOutput [ "include" "dev" ] pkgs.openssl}"
-    => "/nix/store/00000000000000000000000000000000-openssl-1.0.1r-dev"
+    => "/nix/store/00000000000000000000000000000000-openssl-3.3.2-dev"
     "${getFirstOutput [ "include" ] pkgs.openssl}"
-    => "/nix/store/00000000000000000000000000000000-openssl-1.0.1r"
+    => "/nix/store/00000000000000000000000000000000-openssl-3.3.2"
     ```
 
     :::
@@ -1937,7 +1937,7 @@ rec {
 
     ```nix
     "${getBin pkgs.openssl}"
-    => "/nix/store/00000000000000000000000000000000-openssl-1.0.1r-bin"
+    => "/nix/store/00000000000000000000000000000000-openssl-3.3.2-bin"
     "${getBin pkgs.hello}"
     => "/nix/store/00000000000000000000000000000000-hello-2.10"
     ```
@@ -1969,7 +1969,7 @@ rec {
 
     ```nix
     "${getLib pkgs.openssl}"
-    => "/nix/store/9rz8gxhzf8sw4kf2j2f1grr49w8zx5vj-openssl-1.0.1r-lib"
+    => "/nix/store/00000000000000000000000000000000-openssl-3.3.2-lib"
     ```
 
     :::
@@ -2028,7 +2028,7 @@ rec {
 
     ```nix
     "${getDev pkgs.openssl}"
-    => "/nix/store/9rz8gxhzf8sw4kf2j2f1grr49w8zx5vj-openssl-1.0.1r-dev"
+    => "/nix/store/00000000000000000000000000000000-openssl-3.3.2-dev"
     ```
 
     :::
@@ -2057,7 +2057,7 @@ rec {
 
     ```nix
     "${getInclude pkgs.openssl}"
-    => "/nix/store/00000000000000000000000000000000-openssl-1.0.1r-dev"
+    => "/nix/store/00000000000000000000000000000000-openssl-3.3.2-dev"
     ```
 
     :::
@@ -2087,7 +2087,7 @@ rec {
 
     ```nix
     "${getMan pkgs.openssl}"
-    => "/nix/store/9rz8gxhzf8sw4kf2j2f1grr49w8zx5vj-openssl-1.0.1r-man"
+    => "/nix/store/00000000000000000000000000000000-openssl-3.3.2-man"
     ```
 
     :::
