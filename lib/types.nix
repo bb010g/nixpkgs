@@ -177,7 +177,10 @@ rec {
       emptyValue ? {}
     , # Return a flat attrset of sub-options.  Used to generate
       # documentation.
-      getSubOptions ? prefix: {}
+      getSubOptions ? null
+    , # Return a flat attrset of sub-options.  Used to generate
+      # documentation.
+      getSubOptions' ? null
     , # List of modules if any, or null if none.
       getSubModules ? null
     , # Function for building the same option type with a different list of
@@ -206,9 +209,23 @@ rec {
     }:
     { _type = "option-type";
       inherit
-        name check merge emptyValue getSubOptions getSubModules substSubModules
-        typeMerge functor deprecationMessage nestedTypes descriptionClass;
+        name check merge emptyValue getSubModules substSubModules typeMerge
+        functor deprecationMessage nestedTypes descriptionClass;
       description = if description == null then name else description;
+      getSubOptions =
+        if getSubOptions != null then
+          getSubOptions
+        else if getSubOptions' != null then
+          prefix: getSubOptions' prefix [ ]
+        else
+          prefix: { };
+      getSubOptions' =
+        if getSubOptions' != null then
+          getSubOptions'
+        else if getSubOptions != null then
+          prefix: suffix: getSubOptions prefix
+        else
+          prefix: suffix: { };
     };
 
   # optionDescriptionPhrase :: (str -> bool) -> optionType -> str
@@ -577,7 +594,11 @@ rec {
           ) def.value
         ) defs)));
       emptyValue = { value = []; };
-      getSubOptions = prefix: elemType.getSubOptions (prefix ++ ["*"]);
+      getSubOptions' = prefix: suffix:
+        let
+          suffix' = if length suffix < 1 then [ "*" ] else suffix;
+        in
+        elemType.getSubOptions' (prefix ++ [ (head suffix') ]) (tail suffix');
       getSubModules = elemType.getSubModules;
       substSubModules = m: listOf (elemType.substSubModules m);
       functor = (defaultFunctor name) // { wrapped = elemType; };
@@ -661,7 +682,11 @@ rec {
           (pushPositions defs)))
       );
       emptyValue = { value = {}; };
-      getSubOptions = prefix: elemType.getSubOptions (prefix ++ ["<${placeholder}>"]);
+      getSubOptions' = prefix: suffix:
+        let
+          suffix' = if length suffix < 1 then [ "<${placeholder}>" ] else suffix;
+        in
+        elemType.getSubOptions' (prefix ++ [ (head suffix') ]) (tail suffix');
       getSubModules = elemType.getSubModules;
       substSubModules = m: attrsWith { elemType = elemType.substSubModules m; inherit lazy placeholder; };
       functor = defaultFunctor "attrsWith" // {
@@ -718,7 +743,7 @@ rec {
         name = "attrTag";
         description = "attribute-tagged union";
         descriptionClass = "noun";
-        getSubOptions = prefix:
+        getSubOptions' = prefix: suffix:
           mapAttrs
             (tagName: tagOption: {
               "${lib.showOption prefix}" =
@@ -787,7 +812,7 @@ rec {
       inherit (type) description descriptionClass check;
       merge = mergeUniqueOption { inherit message; inherit (type) merge; };
       emptyValue = type.emptyValue;
-      getSubOptions = type.getSubOptions;
+      getSubOptions' = type.getSubOptions';
       getSubModules = type.getSubModules;
       substSubModules = m: uniq (type.substSubModules m);
       functor = (defaultFunctor name) // { wrapped = type; };
@@ -807,7 +832,7 @@ rec {
           throw "The option `${showOption loc}` is defined both null and not null, in ${showFiles (getFiles defs)}."
         else elemType.merge loc defs;
       emptyValue = { value = null; };
-      getSubOptions = elemType.getSubOptions;
+      getSubOptions' = elemType.getSubOptions';
       getSubModules = elemType.getSubModules;
       substSubModules = m: nullOr (elemType.substSubModules m);
       functor = (defaultFunctor name) // { wrapped = elemType; };
@@ -821,7 +846,8 @@ rec {
       check = isFunction;
       merge = loc: defs:
         fnArgs: (mergeDefinitions (loc ++ [ "<function body>" ]) elemType (map (fn: { inherit (fn) file; value = fn.value fnArgs; }) defs)).mergedValue;
-      getSubOptions = prefix: elemType.getSubOptions (prefix ++ [ "<function body>" ]);
+      getSubOptions' = prefix: suffix:
+        elemType.getSubOptions' (prefix ++ [ "<function body>" ]) suffix;
       getSubModules = elemType.getSubModules;
       substSubModules = m: functionTo (elemType.substSubModules m);
       functor = (defaultFunctor "functionTo") // { wrapped = elemType; };
@@ -849,7 +875,7 @@ rec {
         imports = staticModules ++ map (def: lib.setDefaultModuleLocation "${def.file}, via option ${showOption loc}" def.value) defs;
       };
       inherit (submoduleWith { modules = staticModules; })
-        getSubOptions
+        getSubOptions'
         getSubModules;
       substSubModules = m: deferredModuleWith (attrs // {
         staticModules = m;
@@ -948,12 +974,15 @@ rec {
             prefix = loc;
           }).config;
         emptyValue = { value = {}; };
-        getSubOptions = prefix: (base.extendModules
-          { inherit prefix; }).options // optionalAttrs (freeformType != null) {
+        getSubOptions' = prefix: suffix:
+          (base.extendModules {
+            modules = [ { _module.args.name = last prefix; } ];
+            inherit prefix;
+          }).options // optionalAttrs (freeformType != null) {
             # Expose the sub options of the freeform type. Note that the option
             # discovery doesn't care about the attribute name used here, so this
             # is just to avoid conflicts with potential options from the submodule
-            _freeformOptions = freeformType.getSubOptions prefix;
+            _freeformOptions = freeformType.getSubOptions' prefix suffix;
           };
         getSubModules = modules;
         substSubModules = m: submoduleWith (attrs // {
@@ -1094,7 +1123,7 @@ rec {
               else val;
           in finalType.merge loc (map (def: def // { value = coerceVal def.value; }) defs);
         emptyValue = finalType.emptyValue;
-        getSubOptions = finalType.getSubOptions;
+        getSubOptions' = finalType.getSubOptions';
         getSubModules = finalType.getSubModules;
         substSubModules = m: coercedTo coercedType coerceFunc (finalType.substSubModules m);
         typeMerge = t: null;
