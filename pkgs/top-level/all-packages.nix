@@ -18034,20 +18034,26 @@ with pkgs;
       in
         c.config.system.build // c;
 
-  /*
-    A NixOS/home-manager/arion/... module that sets the `pkgs` module argument.
-   */
-  pkgsModule = { options, ... }: {
-    config =
-      if options?nixpkgs.pkgs then {
-        # legacy / nixpkgs.nix style
-        nixpkgs.pkgs = pkgs;
-      }
-      else {
-        # minimal
-        _module.args.pkgs = pkgs;
-      };
-  };
+  # A NixOS/home-manager/arion/... module that sets the `pkgs` module argument.
+  pkgsModule =
+    { options, ... }:
+    {
+      _file = ./all-packages.nix;
+      key = "${toString ./all-packages.nix}:pkgsModule";
+      config =
+        if options ? nixpkgs.pkgs then
+          {
+            # legacy / nixpkgs.nix style
+            nixpkgs = {
+              pkgs = pkgs;
+            };
+          }
+        else
+          {
+            # minimal
+            _module.args.pkgs = pkgs;
+          };
+    };
 
   nixosOptionsDoc = attrs:
     (import ../../nixos/lib/make-options-doc)
