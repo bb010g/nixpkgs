@@ -933,11 +933,14 @@ let
      recursion.
   */
   pushDownProperties = cfg:
-    if cfg._type or "" == "merge" then
+    let
+      cfgType = cfg._type or "";
+    in
+    if cfgType == "merge" then
       concatMap pushDownProperties cfg.contents
-    else if cfg._type or "" == "if" then
+    else if cfgType == "if" then
       map (mapAttrs (n: v: mkIf cfg.condition v)) (pushDownProperties cfg.content)
-    else if cfg._type or "" == "override" then
+    else if cfgType == "override" then
       map (mapAttrs (n: v: mkOverride cfg.priority v)) (pushDownProperties cfg.content)
     else # FIXME: handle mkOrder?
       [ cfg ];
